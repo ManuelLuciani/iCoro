@@ -173,8 +173,8 @@ const IT=['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
 const ITb=['Do','Reb','Re','Mib','Mi','Fa','Solb','Sol','Lab','La','Sib','Si'];
 const EN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const ENb=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-const ROOT={Do:0,Re:2,Mi:4,Fa:5,Sol:7,La:9,Si:11,C:0,D:2,E:4,F:5,G:7,A:9,B:11};
-const R='(?:Sol|Si|Do|Re|Mi|Fa|La|[A-G])';
+const ROOT={Do:0,Re:2,Mi:4,Fa:5,Sol:7,La:9,Si:11,DO:0,RE:2,MI:4,FA:5,SOL:7,LA:9,SI:11,C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const R='(?:SOL|Sol|SI|Si|DO|Do|RE|Re|MI|Mi|FA|Fa|LA|La|[A-G])';
 const CH=new RegExp('^('+R+')([#b♯♭]?)((?:maj|min|dim|aug|sus|add|m|M|\\+|-|°|ø|\\d|[#b]|\\(|\\))*)(?:/('+R+')([#b♯♭]?))?$');
 const FLATKEYS=[5,10,3,8,1];
 const MOMENTI=['Ingresso','Atto penitenziale','Gloria','Salmo','Alleluia','Offertorio','Santo','Agnello di Dio','Comunione','Ringraziamento','Finale'];
@@ -183,9 +183,9 @@ const TIPI={messa:'Messa',standard:'Scaletta standard'};
 const capoHTML=n=>n>0?'<div class="capo">Capotasto al '+n+'° tasto</div>':'';
 function parseChord(s){const m=CH.exec(s);if(!m)return null;
   const acc=x=>x==='#'||x==='♯'?1:(x==='b'||x==='♭'?-1:0);
-  return{root:m[1],acc:acc(m[2]),suffix:m[3]||'',bass:m[4]||null,bacc:acc(m[5]||''),sys:/^(Sol|Si|Do|Re|Mi|Fa|La)$/.test(m[1])?'it':'en'};}
+  return{root:m[1],acc:acc(m[2]),suffix:m[3]||'',bass:m[4]||null,bacc:acc(m[5]||''),sys:/^(SOL|Sol|SI|Si|DO|Do|RE|Re|MI|Mi|FA|Fa|LA|La)$/.test(m[1])?'it':'en'};}
 function idxOf(root,acc){return((ROOT[root]+acc)%12+12)%12}
-function isMinor(p){return /^(m(?!aj)|min)/.test(p.suffix)}
+function isMinor(p){return /^(m(?!aj)|min|-)/.test(p.suffix)}
 function keyIndex(chord){const p=parseChord(chord);if(!p)return null;let i=idxOf(p.root,p.acc);return isMinor(p)?(i+3)%12:i}
 function nameFor(i,sys,flats){return(sys==='it'?IT:EN)[((i%12)+12)%12]}
 function shiftChord(str,n,sys,flats){const p=parseChord(str);if(!p)return str;
@@ -193,16 +193,21 @@ function shiftChord(str,n,sys,flats){const p=parseChord(str);if(!p)return str;
   if(p.bass)out+='/'+nameFor(idxOf(p.bass,p.bacc)+n,sys,flats);return out}
 function firstChord(body){const re=/\[([^\]]+)\]/g;let m;while((m=re.exec(body))){if(parseChord(m[1].trim()))return m[1].trim()}return null}
 function songSys(body){const c=firstChord(body);const p=c&&parseChord(c);return p?p.sys:'it'}
-function isChordLine(l){if(!l.trim()||l.includes('['))return false;const t=l.trim().split(/\s+/);
-  if(!t.every(x=>CH.test(x)))return false;
-  if(t.length>1)return true;const x=t[0];return /[#b\d\/m\-+]/.test(x.slice(1))||/^[A-G]$/.test(x)&&x!=='E'||x.length>3}
+const TOKRE=/^(\(?)(.+?)([)….,]*)$/;
+function tokInfo(x){const m=TOKRE.exec(x);if(!m||!CH.test(m[2]))return null;return{pre:m[1],core:m[2],post:m[3]}}
+function isChordLine(l){if(!l.trim()||l.includes('['))return false;
+  let t=l.trim().split(/\s+/);if(t.length>1&&/^[A-Za-zÀ-ÿ]+:$/.test(t[0]))t=t.slice(1);
+  t=t.filter(x=>!/^[\/|]+$/.test(x));if(!t.length)return false;
+  const ti=t.map(tokInfo);if(!ti.every(Boolean))return false;
+  if(t.length>1)return true;const x=ti[0].core;return /[#b\d\/m\-+]/.test(x.slice(1))||/^[A-G]$/.test(x)&&x!=='E'||x.length>3}
+const wrapTok=x=>{const i=tokInfo(x);return i?i.pre+'['+i.core+']'+i.post:x};
 function normalizeBody(txt){const L=String(txt).replace(/\r/g,'').split('\n'),out=[];
   for(let i=0;i<L.length;i++){const l=L[i];
-    if(isChordLine(l)){const toks=[...l.matchAll(/\S+/g)];const nx=L[i+1];
+    if(isChordLine(l)){const toks=[...l.matchAll(/\S+/g)].filter(m=>tokInfo(m[0]));const nx=L[i+1];
       if(nx!==undefined&&nx.trim()&&!isChordLine(nx)&&!nx.includes('[')&&!/^\s*#/.test(nx)){
-        let s=nx;for(let k=toks.length-1;k>=0;k--){const pos=toks[k].index;if(s.length<pos)s=s.padEnd(pos,' ');s=s.slice(0,pos)+'['+toks[k][0]+']'+s.slice(pos)}
+        let s=nx;for(let k=toks.length-1;k>=0;k--){const pos=toks[k].index;if(s.length<pos)s=s.padEnd(pos,' ');s=s.slice(0,pos)+wrapTok(toks[k][0])+s.slice(pos)}
         out.push(s);i++;continue}
-      out.push(toks.map(x=>'['+x[0]+']').join(' '));continue}
+      out.push(l.trim().replace(/\s+/g,' ').replace(/\S+/g,wrapTok));continue}
     out.push(l)}
   return out.join('\n')}
 /* tonalità mostrata dopo la trasposizione */
@@ -413,7 +418,7 @@ async function fromPhotos(files){
   const ac=new AbortController();$('#pabort').onclick=()=>{ac.abort();closeModal()};
   try{
     const parts=[];
-    const prompt='Ti allego la foto di una o più pagine di un libro di canti per la chiesa, con testo e accordi. Trascrivi il canto in formato ChordPro: ogni accordo tra parentesi quadre subito prima della sillaba su cui cade, scritto esattamente come nel libro (per esempio [Do], [Lam], [Sol7], oppure [C], [Am]). Rispondi solo così, senza commenti:\nTITOLO: <titolo>\nAUTORE: <autore se indicato, altrimenti vuoto>\n---\n<testo con accordi; una riga vuota tra le strofe; le sezioni su una riga che inizia con # (per esempio # Ritornello)>\nNon inventare e non correggere nulla: se una parola o un accordo non è leggibile scrivi [?]. Se nella foto c’è più di un canto, trascrivi solo il primo.';
+    const prompt='Ti allego la foto di una o più pagine di un libro di canti per la chiesa, con testo e accordi. Trascrivi il canto in formato ChordPro: ogni accordo tra parentesi quadre subito prima della sillaba su cui cade, scritto esattamente come nel libro, anche in maiuscolo (per esempio [RE], [SOL], [SI-], [LA4], oppure [Do], [Lam], [C], [Am]). Un accordo scritto tra parentesi nel libro, come (RE), diventa ([RE]). Rispondi solo così, senza commenti:\nTITOLO: <titolo>\nAUTORE: <autore se indicato, altrimenti vuoto>\n---\n<corpo>\nRegole per il corpo: se sotto il titolo c’è una riga con tempo o tonalità (per esempio 6/8 - Largo in Re Maggiore) scrivila come prima riga, senza accordi. Le etichette di sezione come Ritornello o Strumentale vanno su una riga a sé che inizia con # (per esempio # Ritornello, # Strumentale); le righe di soli accordi di intro e strumentale vanno subito sotto, con gli accordi tra parentesi quadre separati da spazio o da / come nel libro. Una riga vuota tra le strofe. Il testo delle parole va copiato fedelmente, con le maiuscole e minuscole normali di una frase. Non inventare e non correggere nulla: se una parola o un accordo non è leggibile scrivi [?]. Se nella foto c’è più di un canto, trascrivi solo il primo.';
     parts.push({text:prompt});
     for(const f of [...files].slice(0,3)){const bl=await shrink(f);parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(bl)}})}
     const t=await gemini(key,parts,ac.signal);

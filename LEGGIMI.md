@@ -44,6 +44,8 @@ Questa cartella contiene l'app completa. Non dipende da Claude: i dati stanno in
 
 ## Note
 - Il piano gratuito di Firebase (Spark) è ampiamente sufficiente per un coro.
-- La lettura da foto non c'è più, perché richiedeva Claude. I canti si scrivono o incollano; l'editor converte accordi sopra al testo nel formato interno.
+- I canti si scrivono o incollano; l'editor converte accordi sopra al testo nel formato interno.
+- Lettura da foto (solo editor): usa Gemini con una chiave gratuita creata su https://aistudio.google.com → "Get API key", da incollare in Impostazioni → "Lettura da foto". La chiave resta solo su quel dispositivo, non nel codice né su Firebase. Se un modello supera la quota gratuita, l'app ne prova un altro.
+- Importa canti da testo (solo editor): Impostazioni → "Importa canti…", incolla un testo o scegli un .txt con uno o più canti nel formato `@@@ CANTO` / `TITOLO:` / `AUTORE:` / `---` / testo con accordi. I canti importati hanno l'etichetta "Da rivedere".
 - Se aggiorni i file su GitHub e il coro vede ancora la vecchia versione, basta chiudere e riaprire l'app due volte.
 - Se l'accesso non funziona dopo la pubblicazione: Authentication → Settings → "Domini autorizzati" → aggiungi `TUOUTENTE.github.io`.

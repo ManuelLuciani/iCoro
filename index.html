@@ -242,7 +242,7 @@ const ROOT={Do:0,Re:2,Mi:4,Fa:5,Sol:7,La:9,Si:11,DO:0,RE:2,MI:4,FA:5,SOL:7,LA:9,
 const R='(?:SOL|Sol|SI|Si|DO|Do|RE|Re|MI|Mi|FA|Fa|LA|La|[A-G])';
 const CH=new RegExp('^('+R+')([#b♯♭]?)((?:maj|min|dim|aug|sus|add|m|M|\\+|-|°|ø|\\d|[#b]|\\(|\\))*)(?:/('+R+')([#b♯♭]?))?$');
 const FLATKEYS=[5,10,3,8,1];
-const MOMENTI=['Ingresso','Atto penitenziale','Gloria','Salmo','Alleluia','Offertorio','Santo','Agnello di Dio','Comunione','Ringraziamento','Finale'];
+const MOMENTI=['Ingresso','Gloria','Alleluia','Offertorio','Santo','Agnello di Dio','Comunione','Finale'];
 const TEMPI=['Avvento','Natale','Quaresima','Pasqua','Pentecoste','Tempo ordinario','Maria','Santi','Da rivedere'];
 const TIPI={messa:'Messa',standard:'Scaletta standard'};
 const capoHTML=n=>n>0?'<div class="capo">Capotasto al '+n+'° tasto</div>':'';

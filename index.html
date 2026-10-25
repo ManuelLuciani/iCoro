@@ -235,7 +235,7 @@ const R='(?:SOL|Sol|SI|Si|DO|Do|RE|Re|MI|Mi|FA|Fa|LA|La|[A-G])';
 const CH=new RegExp('^('+R+')([#b♯♭]?)((?:maj|min|dim|aug|sus|add|m|M|\\+|-|°|ø|\\d|[#b]|\\(|\\))*)(?:/('+R+')([#b♯♭]?))?$');
 const FLATKEYS=[5,10,3,8,1];
 const MOMENTI=['Ingresso','Atto penitenziale','Gloria','Salmo','Alleluia','Offertorio','Santo','Agnello di Dio','Comunione','Ringraziamento','Finale'];
-const TEMPI=['Avvento','Natale','Quaresima','Pasqua','Pentecoste','Tempo ordinario','Maria','Santi'];
+const TEMPI=['Avvento','Natale','Quaresima','Pasqua','Pentecoste','Tempo ordinario','Maria','Santi','Da rivedere'];
 const TIPI={messa:'Messa',standard:'Scaletta standard'};
 const capoHTML=n=>n>0?'<div class="capo">Capotasto al '+n+'° tasto</div>':'';
 function parseChord(s){const m=CH.exec(s);if(!m)return null;
@@ -566,6 +566,7 @@ function settings(){
   modal('Impostazioni','<p style="margin:0 0 6px;font-weight:600">Aspetto</p><div class="seg" id="spt">'+[['auto','Automatico'],['light','Chiaro'],['dark','Scuro']].map(x=>'<button data-act="theme" data-v="'+x[0]+'" aria-pressed="'+(S.theme===x[0])+'">'+x[1]+'</button>').join('')+'</div><p style="margin:14px 0 6px;font-weight:600">Colore di accento</p><div class="swatches" id="spa">'+Object.keys(ACC).map(k=>{const a=ACC[k];return'<button data-act="accent" data-v="'+k+'" aria-label="'+a.n+'" aria-pressed="'+(S.accent===k)+'" style="background:'+(isDark()?a.d:a.l)+';color:'+dk2ink(a)+'">\u2713</button>'}).join('')+'</div><p style="margin:16px 0 6px;font-weight:600">Nomi degli accordi</p><div class="seg" id="sp"><button data-act="pref" data-v="auto" aria-pressed="'+(S.pref==='auto')+'">Come nel libro</button><button data-act="pref" data-v="it" aria-pressed="'+(S.pref==='it')+'">Do Re Mi</button><button data-act="pref" data-v="en" aria-pressed="'+(S.pref==='en')+'">C D E</button></div>'
    +(S.db?'<p style="margin:16px 0 6px;font-weight:600">Accesso editor</p>'+(S.user?'<p class="hint">Sei dentro come '+esc(S.user.email)+'. Puoi modificare canti e scalette per tutto il coro.</p><button class="btn" data-act="logout">Esci</button>':'<p class="hint">Solo chi cura il repertorio ha bisogno di accedere. Tutti gli altri leggono e basta.</p><div class="form" style="padding:0"><label>Email<input type="email" id="lg-mail" autocomplete="username"></label><label>Password<input type="password" id="lg-pw" autocomplete="current-password"></label></div><button class="btn pri" data-act="login" style="margin-top:8px">Accedi</button>'):'')
    +('<div class="editonly"><p style="margin:16px 0 6px;font-weight:600">Lettura da foto (Gemini)</p><p class="hint">Incolla qui la tua chiave gratuita, creata su aistudio.google.com \u2192 \u201CGet API key\u201D. Resta salvata solo su questo dispositivo.</p><div class="form" style="padding:0"><label>Chiave<input type="password" id="gk" value="'+esc(LS.get('gkey',''))+'" autocomplete="off" placeholder="AIza\u2026"></label></div></div>')
+   +'<div class="editonly"><p style="margin:16px 0 6px;font-weight:600">Importa canti da testo</p><p class="hint">Incolla qui il testo preparato con Gemini (o scegli un file .txt). I canti entrano nella libreria con l\u2019etichetta \u201CDa rivedere\u201D.</p><button class="btn" data-act="importtxt" style="margin-top:8px">Importa canti\u2026</button></div>'
    +'<p class="hint editonly" style="margin-top:14px">Copia di sicurezza: scarica tutti i canti e le scalette in un file, o ricaricali da un file salvato prima.</p>'
    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="export">Scarica copia</button><label class="btn editonly" style="cursor:pointer">Ripristina da file<input type="file" id="imp" accept=".json,application/json" hidden></label></div>','<button class="btn pri" data-act="mclose">Fatto</button>');
   if($('#gk'))$('#gk').addEventListener('change',e=>{LS.set('gkey',e.target.value.trim());LS.set('gmodels2',null);toast('Chiave salvata')});
@@ -593,6 +594,32 @@ function settings(){
   document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
   document.addEventListener('click',e=>{if(swallow&&e.target.closest&&e.target.closest('li.sw')&&!e.target.closest('.swdel')){e.stopPropagation();e.preventDefault()}},true);
 })();
+/* ---------- importazione da testo (preparato con un assistente) ---------- */
+function parseImport(txt){
+  const t=String(txt).replace(/\r/g,'').replace(/^```[a-z]*\s*$/gmi,'');
+  const chunks=t.split(/^\s*@@@\s*CANTO\b.*$/mi).slice(1);const out=[];
+  for(const c of chunks){
+    const m=/^\s*TITOLO:\s*(.*)$/mi.exec(c),a=/^\s*AUTORE:\s*(.*)$/mi.exec(c);
+    const i=c.search(/^\s*-{3,}\s*$/m);if(i<0)continue;
+    const body=c.slice(i).replace(/^\s*-{3,}\s*\n?/,'').replace(/\s+$/,'');
+    const title=m?m[1].trim():'';if(!title||!body.trim())continue;
+    out.push({title,author:a?a[1].trim():'',body:normalizeBody(body)})}
+  return out}
+function importDialog(){
+  modal('Importa canti','<p class="hint">Incolla il testo con i canti nel formato indicato, oppure scegli un file.</p><textarea id="imptxt" style="min-height:200px;margin-top:8px" placeholder="@@@ CANTO&#10;TITOLO: ...&#10;AUTORE: ...&#10;---&#10;..."></textarea><label class="btn" style="cursor:pointer;margin-top:8px">Scegli file .txt<input type="file" id="impf" accept=".txt,text/plain" hidden></label>','<button class="btn" data-act="mclose">Annulla</button><button class="btn pri" id="impgo">Importa</button>');
+  $('#impf').addEventListener('change',async e=>{const f=e.target.files[0];if(f)$('#imptxt').value=await f.text()});
+  $('#impgo').onclick=async()=>{
+    const list=parseImport($('#imptxt').value);if(!list.length){toast('Non trovo nessun canto: controlla il formato');return}
+    const have=new Set(S.songs.map(x=>x.title.trim().toLowerCase()));let n=0,dup=[],q=0;
+    $('#impgo').disabled=true;
+    for(const x of list){
+      if(have.has(x.title.toLowerCase())){dup.push(x.title);continue}
+      const unsure=/\[\?\]/.test(x.body);
+      await saveSong({id:uid(),title:x.title,author:x.author,body:x.body,tags:['Da rivedere'],capo:0,key:keyLabel({body:x.body},0,'auto'),example:false});
+      have.add(x.title.toLowerCase());n++;if(unsure)q++;
+      $('#impgo').textContent=n+' / '+list.length}
+    render();
+    modal('Importazione finita','<p>Importati '+n+(n===1?' canto':' canti')+(dup.length?', saltati '+dup.length+' perch\u00E9 con lo stesso titolo c\u2019erano gi\u00E0':'')+'.</p>'+(q?'<p>'+q+(q===1?' contiene':' contengono')+' <b>[?]</b>: punti che l\u2019assistente non riusciva a leggere. Cercali nel testo e correggili.</p>':'')+'<p class="hint">I canti importati hanno l\u2019etichetta \u201CDa rivedere\u201D: tocca \u201CTempo\u201D in alto per trovarli tutti insieme e toglila quando li hai controllati.</p>'+(dup.length?'<p class="hint">Saltati: '+esc(dup.slice(0,8).join(', '))+(dup.length>8?'\u2026':'')+'</p>':''),'<button class="btn pri" data-act="mclose">Chiudi</button>')}}
 /* ---------- azioni ---------- */
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;$('#listBody').innerHTML=listItems()}});
 document.addEventListener('change',async e=>{
@@ -637,6 +664,7 @@ document.addEventListener('click',async e=>{
   case'addtonew':{const s={id:uid(),type:'standard',name:'Nuova scaletta',date:new Date().toISOString().slice(0,10),items:[{sid:song.id,tr:S.tr,capo:song.capo||0,label:''}]};await saveSet(s);closeModal();S.tab='set';S.selSet=s.id;S.view='detail';render();break}
   case'mclose':closeModal();break;
   case'settings':settings();break;
+  case'importtxt':importDialog();break;
   case'login':{const m=($('#lg-mail').value||'').trim(),p=$('#lg-pw').value;if(!m||!p){toast('Scrivi email e password');break}
     try{await S.auth.signInWithEmailAndPassword(m,p);closeModal();toast('Accesso effettuato')}catch(err){toast('Email o password non corretti')}break}
   case'logout':await S.auth.signOut();closeModal();toast('Sei uscito');break;

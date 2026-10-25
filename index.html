@@ -56,6 +56,12 @@ input[type=text],input[type=search],input[type=date],select,textarea{width:100%;
 textarea{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:320px;resize:vertical}
 .list{list-style:none;margin:0;padding:0}
 .list li{border-bottom:1px solid var(--line)}
+.list li.sw{position:relative;overflow:hidden;touch-action:pan-y}
+.list li.sw .row{position:relative;background:var(--surface);transition:transform .2s ease;will-change:transform}
+.list li.sw.drag .row{transition:none}
+.list li.sw.open .row{transform:translateX(-96px)}
+.swdel{position:absolute;top:0;right:0;bottom:0;width:96px;border:0;background:var(--danger);color:#fff;font:600 15px var(--ui);display:flex;align-items:center;justify-content:center}
+.ro .swdel{display:none}
 .row{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;min-height:56px}
 .row[aria-current="true"]{background:var(--accent-soft)}
 .row .t{font:600 17px/1.25 var(--text);display:block}
@@ -275,7 +281,7 @@ function seed(){
 /* ---------- viste ---------- */
 function songsFiltered(){const q=S.q.trim().toLowerCase();
   return S.songs.slice().sort((x,y)=>x.title.localeCompare(y.title,'it')).filter(s=>!q||(s.title+' '+(s.author||'')+' '+s.body.replace(/\[[^\]]*\]/g,'')).toLowerCase().includes(q))}
-function rowHTML(s){return'<li><button class="row" data-act="open" data-id="'+s.id+'" '+(S.sel===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.title)+'</span><span class="s">'+esc(s.author||'')+'</span></span>'+(s.example?'<span class="badge ex">esempio</span>':'')+(firstChord(s.body)?'<span class="badge">'+esc(keyLabel(s,0,S.pref))+'</span>':'')+'</button></li>'}
+function rowHTML(s){return'<li class="sw" data-id="'+s.id+'"><button class="swdel" data-act="swdel" data-id="'+s.id+'" tabindex="-1" aria-label="Elimina '+esc(s.title)+'">Elimina</button><button class="row" data-act="open" data-id="'+s.id+'" '+(S.sel===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.title)+'</span><span class="s">'+esc(s.author||'')+'</span></span>'+(s.example?'<span class="badge ex">esempio</span>':'')+(firstChord(s.body)?'<span class="badge">'+esc(keyLabel(s,0,S.pref))+'</span>':'')+'</button></li>'}
 function letterOf(t){const c=t.trim().charAt(0).normalize('NFD').charAt(0).toUpperCase();return/[A-Z]/.test(c)?c:'#'}
 function listItems(){const L=songsFiltered();
   if(!S.songs.length)return'<div class="empty"><b>La libreria \u00E8 vuota</b>Se sei un editor, accedi da Impostazioni e aggiungi il primo canto con \u201CNuovo canto\u201D o \u201CDa foto\u201D.</div>';
@@ -486,6 +492,27 @@ function settings(){
   if($('#imp'))$('#imp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
     try{const d=JSON.parse(await f.text());let n=0;for(const s of d.songs||[]){if(s.id&&s.title){await saveSong(s);n++}}for(const s of d.sets||[]){if(s.id&&s.name){await saveSet(s)}}closeModal();render();toast('Ripristinati '+n+' canti')}catch(err){toast('File non valido')}})}
 
+/* ---------- scorrimento a sinistra per eliminare ---------- */
+(function(){
+  let st=null,swallow=false;
+  const closeAll=except=>document.querySelectorAll('li.sw.open').forEach(l=>{if(l!==except)l.classList.remove('open')});
+  document.addEventListener('pointerdown',e=>{
+    const li=e.target.closest&&e.target.closest('li.sw');
+    if(!li||!S.canEdit||e.target.closest('.swdel')){if(!e.target.closest||!e.target.closest('.swdel'))closeAll(null);return}
+    closeAll(li);st={li,x:e.clientX,y:e.clientY,open:li.classList.contains('open'),moved:false,dir:null,id:e.pointerId}});
+  document.addEventListener('pointermove',e=>{
+    if(!st||e.pointerId!==st.id)return;const dx=e.clientX-st.x,dy=e.clientY-st.y;
+    if(!st.dir){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;st.dir=Math.abs(dx)>Math.abs(dy)*1.3?'h':'v';if(st.dir==='v'){st=null;return}st.li.classList.add('drag');try{st.li.setPointerCapture(e.pointerId)}catch(_){}}
+    st.moved=true;const base=st.open?-96:0;const x=Math.max(-110,Math.min(0,base+dx));
+    st.li.querySelector('.row').style.transform='translateX('+x+'px)'});
+  const end=e=>{
+    if(!st||e.pointerId!==st.id)return;const li=st.li;
+    if(st.moved){const row=li.querySelector('.row');const m=/-?[\d.]+/.exec(row.style.transform);const x=m?parseFloat(m[0]):0;
+      li.classList.remove('drag');row.style.transform='';li.classList.toggle('open',x<-48);swallow=true;setTimeout(()=>swallow=false,350)}
+    st=null};
+  document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
+  document.addEventListener('click',e=>{if(swallow&&e.target.closest&&e.target.closest('li.sw')&&!e.target.closest('.swdel')){e.stopPropagation();e.preventDefault()}},true);
+})();
 /* ---------- azioni ---------- */
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;$('#listBody').innerHTML=listItems()}});
 document.addEventListener('change',async e=>{
@@ -507,6 +534,8 @@ document.addEventListener('click',async e=>{
     if(!ed.title){toast('Scrivi un titolo');return}if(!ed.body.trim()){toast('Il canto è vuoto');return}
     const o={id:ed.id||uid(),title:ed.title,author:ed.author,body:ed.body,tags:ed.tags||[],capo:ed.capo||0,key:keyLabel({body:ed.body},0,'auto'),example:false};
     await saveSong(o);S.sel=o.id;S.edit=null;S.view='detail';S.tr=0;render();toast('Canto salvato');break}
+  case'swdel':{const sg=S.songs.find(x=>x.id===b.dataset.id);if(!sg)break;
+    ask('Eliminare questo canto?','\u201C'+sg.title+'\u201D verr\u00E0 eliminato per tutto il coro, anche dalle scalette. L\u2019operazione non si pu\u00F2 annullare.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==sg.id);await unpersist('songs',sg.id);if(S.sel===sg.id){S.sel=null;S.view='list'}S.edit=null;render();toast('Canto eliminato')},true);break}
   case'delsong':ask('Eliminare questo canto?','“'+song.title+'” sparirà dalla libreria e dalle scalette.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==song.id);await unpersist('songs',song.id);S.sel=null;S.edit=null;S.view='list';render()},true);break;
   case'photo':{let inp=$('#photoIn');if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.id='photoIn';inp.hidden=true;document.body.appendChild(inp)}inp.click();break}
   case'idx':S.idx=b.dataset.v;LS.set('idx',S.idx);render();break;

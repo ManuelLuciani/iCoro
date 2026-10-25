@@ -419,7 +419,7 @@ function fmtDate(d){if(!d)return'';const x=new Date(d+'T12:00:00');return isNaN(
 function viewSet(){
   const set=S.sets.find(s=>s.id===S.selSet);
   $('#main').dataset.view=S.view==='detail'?'detail':'list';
-  let l=sortedSets().map(s=>'<li><button class="row" data-act="openset" data-id="'+s.id+'" '+(S.selSet===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.name)+'</span><span class="s">'+esc(fmtDate(s.date))+' · '+s.items.length+(s.items.length===1?' canto':' canti')+'</span></span>'+'<span class="badge">'+esc(TIPI[s.type]||TIPI.standard)+'</span>'+(s.example?'<span class="badge ex">esempio</span>':'')+'</button></li>').join('');
+  let l=sortedSets().map(s=>'<li class="sw" data-id="'+s.id+'"><button class="swdel" data-act="swdelset" data-id="'+s.id+'" tabindex="-1" aria-label="Elimina '+esc(s.name)+'">Elimina</button><button class="row" data-act="openset" data-id="'+s.id+'" '+(S.selSet===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.name)+'</span><span class="s">'+esc(fmtDate(s.date))+' · '+s.items.length+(s.items.length===1?' canto':' canti')+'</span></span>'+'<span class="badge">'+esc(TIPI[s.type]||TIPI.standard)+'</span>'+(s.example?'<span class="badge ex">esempio</span>':'')+'</button></li>').join('');
   let h='<section class="pane listp"><div class="pane-b">'
    +(l?'<ul class="list">'+l+'</ul>':'<div class="empty"><b>Nessuna scaletta</b>Crea una scaletta per la messa della domenica o per un altro evento, poi scegli i canti.</div>')+'</div></section>';
   h+='<section class="pane detailp">'+(set?setHTML(set):'<div class="empty" style="margin:auto"><b>Scegli una scaletta</b>Oppure creane una nuova.</div>')+'</section>';
@@ -730,6 +730,8 @@ document.addEventListener('click',async e=>{
     S.nt='messa';$('#nok').onclick=async()=>{const s={id:uid(),type:S.nt,name:$('#n-name').value.trim()||TIPI[S.nt],date:$('#n-date').value,items:[]};closeModal();await saveSet(s);S.selSet=s.id;S.view='detail';render()};break}
   case'ntype':{S.nt=b.dataset.v;document.querySelectorAll('#nt button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.nt));const nm=$('#n-name');if(nm&&(nm.value==='Messa'||nm.value==='Scaletta standard'||!nm.value))nm.value=TIPI[S.nt];break}
   case'dupset':{const c={...set,id:uid(),name:set.name+' (copia)',example:false,items:set.items.map(x=>({...x}))};await saveSet(c);S.selSet=c.id;render();break}
+  case'swdelset':{const ss=S.sets.find(x=>x.id===b.dataset.id);if(!ss)break;
+    ask('Eliminare la scaletta?','\u201C'+ss.name+'\u201D verr\u00E0 eliminata per tutto il coro. I canti restano nella libreria.','Elimina',async()=>{S.sets=S.sets.filter(x=>x.id!==ss.id);await unpersist('setlists',ss.id);if(S.selSet===ss.id){S.selSet=null;S.view='list'}render();toast('Scaletta eliminata')},true);break}
   case'delset':ask('Eliminare la scaletta?','“'+set.name+'” verrà eliminata. I canti restano nella libreria.','Elimina',async()=>{S.sets=S.sets.filter(x=>x.id!==set.id);await unpersist('setlists',set.id);S.selSet=null;S.view='list';render()},true);break;
   case'pickmom':{const m=b.dataset.m;pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:m})});sortMessa(set);await saveSet(set);render()},m);break}
   case'pickadd':if(set.type==='messa')break;pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:''})});await saveSet(set);render()});break;

@@ -389,7 +389,7 @@ document.addEventListener('keydown',e=>{if(!$('#pres').classList.contains('on'))
 function closePres(){$('#pres').classList.remove('on');$('#pres').innerHTML='';S.pres=null;lockOff()}
 
 /* ---------- foto (lettura con Gemini) ---------- */
-async function shrink(file){const bmp=await createImageBitmap(file);const k=Math.min(1,1800/Math.max(bmp.width,bmp.height));
+async function shrink(file){const bmp=await createImageBitmap(file);const k=Math.min(1,2400/Math.max(bmp.width,bmp.height));
   const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(r,'image/jpeg',.85))}
 const b64=blob=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(blob)});
@@ -411,7 +411,7 @@ async function gemini(key,parts,signal){
     const models=await listModels(key,round>0);
     for(const model of models.slice(0,3)){
       try{
-        const r=await fetch(GAPI+'models/'+model+':generateContent?key='+encodeURIComponent(key),{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0}})});
+        const r=await fetch(GAPI+'models/'+model+':generateContent?key='+encodeURIComponent(key),{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0,responseMimeType:'application/json'}})});
         if(!r.ok){const e=await apiErr(r);if([400,401,403,429].includes(e.status))throw e;last=e;continue}
         const j=await r.json();const c=(j.candidates||[])[0];const t=c&&c.content&&c.content.parts;
         const txt=t?t.map(p=>p.text||'').join('').trim():'';
@@ -421,6 +421,28 @@ async function gemini(key,parts,signal){
     }
     LS.set('gmodels',null)}
   throw last||new Error('sconosciuto')}
+function placeChords(text,list){
+  const base=text.toLowerCase();const ins=[];
+  for(const c of list||[]){const a=String(c.a||'').trim();if(!a)continue;const pre=String(c.prima||'');let pos=-1;
+    if(!pre)pos=0;
+    else if(base.startsWith(pre.toLowerCase()))pos=pre.length;
+    else{ // ripiego: ultima parola di "prima" cercata nel testo, altrimenti proporzione
+      const w=pre.trim().split(/\s+/).pop().toLowerCase();const i=w?base.indexOf(w):-1;
+      pos=i>=0?i+w.length:Math.min(text.length,pre.length)}
+    ins.push({pos,a})}
+  ins.sort((x,y)=>y.pos-x.pos);let out=text;
+  for(const x of ins){const m=/^\((.*)\)$/.exec(x.a);const ch=m?'(['+m[1]+'])':'['+x.a+']';out=out.slice(0,x.pos)+ch+out.slice(x.pos)}
+  return out}
+function buildFromJSON(raw){
+  let j;try{j=JSON.parse(raw)}catch(e){const m=/\{[\s\S]*\}/.exec(raw);if(!m)throw Object.assign(new Error('json'),{detail:'La risposta non è nel formato atteso'});j=JSON.parse(m[0])}
+  const out=[];
+  for(const r of j.righe||[]){
+    if(r.t==='vuota')out.push('');
+    else if(r.t==='nota')out.push(r.testo||'');
+    else if(r.t==='sezione')out.push('# '+String(r.testo||'').replace(/^#\s*/,'').replace(/:$/,''));
+    else if(r.t==='accordi')out.push(String(r.testo||'').trim().replace(/\S+/g,wrapTok));
+    else out.push(placeChords(String(r.testo||''),r.accordi))}
+  return{title:String(j.titolo||'').trim(),author:String(j.autore||'').trim(),body:out.join('\n').replace(/\n{3,}/g,'\n\n').trim()}}
 async function fromPhotos(files){
   const key=LS.get('gkey','');
   if(!key){toast('Prima inserisci la chiave Gemini nelle Impostazioni');settings();return}
@@ -428,12 +450,12 @@ async function fromPhotos(files){
   const ac=new AbortController();$('#pabort').onclick=()=>{ac.abort();closeModal()};
   try{
     const parts=[];
-    const prompt='Ti allego la foto di una o più pagine di un libro di canti per la chiesa, con testo e accordi. Trascrivi il canto in formato ChordPro: ogni accordo tra parentesi quadre subito prima della sillaba su cui cade, scritto esattamente come nel libro, anche in maiuscolo (per esempio [RE], [SOL], [SI-], [LA4], oppure [Do], [Lam], [C], [Am]). Un accordo scritto tra parentesi nel libro, come (RE), diventa ([RE]). Rispondi solo così, senza commenti:\nTITOLO: <titolo>\nAUTORE: <autore se indicato, altrimenti vuoto>\n---\n<corpo>\nRegole per il corpo: se sotto il titolo c’è una riga con tempo o tonalità (per esempio 6/8 - Largo in Re Maggiore) scrivila come prima riga, senza accordi. Le etichette di sezione come Ritornello o Strumentale vanno su una riga a sé che inizia con # (per esempio # Ritornello, # Strumentale); le righe di soli accordi di intro e strumentale vanno subito sotto, con gli accordi tra parentesi quadre separati da spazio o da / come nel libro. Una riga vuota tra le strofe. Il testo delle parole va copiato fedelmente, con le maiuscole e minuscole normali di una frase. Non inventare e non correggere nulla: se una parola o un accordo non è leggibile scrivi [?]. Se nella foto c’è più di un canto, trascrivi solo il primo.';
+    const prompt='Ti allego la foto di una o più pagine di un libro di canti per la chiesa, con testo e accordi (stampato o scritto a mano). Trascrivi il primo canto come JSON, senza altro testo.\nFormato: {"titolo":"...","autore":"...","righe":[ ... ]}. Ogni elemento di "righe" è uno di questi, nell’ordine della pagina:\n- {"t":"nota","testo":"..."} per righe come il tempo o la tonalità sotto il titolo (es. 6/8 - Largo in Re Maggiore);\n- {"t":"sezione","testo":"..."} per etichette come Strofa, Ritornello, Strumentale, quando sono su una riga a sé senza accordi;\n- {"t":"accordi","testo":"RE / SOL / SI- / LA4"} per righe di soli accordi (intro, strumentale, anche se hanno un’etichetta davanti: in quel caso usa {"t":"accordi","testo":"INTRO: RE / SOL"}); copia gli accordi e i separatori esattamente come nel libro, anche in maiuscolo;\n- {"t":"testo","testo":"<riga di parole>","accordi":[{"a":"RE","prima":"<parole che precedono l’accordo>"}]} per ogni riga di parole;\n- {"t":"vuota"} per una riga vuota tra le strofe.\nCome si compilano gli accordi di una riga di parole: ogni accordo è scritto sopra la riga, esattamente sopra una lettera. In "prima" scrivi, carattere per carattere uguale a "testo", tutto il testo della riga che sta a SINISTRA di quella lettera, cioè le lettere che precedono il punto in cui comincia l’accordo (stringa vuota se l’accordo è sopra la prima lettera). Se l’accordo cade a metà di una parola, "prima" finisce a metà di quella parola, sulla sillaba giusta. Guarda con cura la posizione orizzontale di ogni accordo rispetto alle lettere sotto di lui. Elenca gli accordi della riga da sinistra a destra. Un accordo tra parentesi nel libro, come (RE), va scritto con le parentesi in "a". Copia gli accordi come scritti (RE, SOL, SI-, LA4, Do, Lam, C, Am).\nCopia le parole fedelmente, con maiuscole e minuscole normali di una frase. Non inventare e non correggere nulla: dove una parola o un accordo non è leggibile scrivi [?] al suo posto. Se nella foto c’è più di un canto, trascrivi solo il primo.';
     parts.push({text:prompt});
     for(const f of [...files].slice(0,3)){let bl;try{bl=await shrink(f)}catch(er){const x=new Error('foto');x.detail='Non riesco ad aprire la foto ('+(f.type||'formato sconosciuto')+'). Prova a scattarla di nuovo o a scegliere un JPEG.';throw x}parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(bl)}})}
     const t=await gemini(key,parts,ac.signal);
-    const mt=/TITOLO:\s*(.*)/i.exec(t),ma=/AUTORE:\s*(.*)/i.exec(t);const body=t.split(/\n---+\s*\n/).slice(1).join('\n---\n').trim()||t;
-    closeModal();S.tab='lib';S.sel=null;S.edit={isNew:true,fromPhoto:true,title:(mt&&mt[1].trim().replace(/^<|>$/g,''))||'',author:(ma&&ma[1].trim().replace(/^<|>$/g,''))||'',body:normalizeBody(body)};S.view='detail';render();
+    const parsed=buildFromJSON(t);
+    closeModal();S.tab='lib';S.sel=null;S.edit={isNew:true,fromPhoto:true,title:parsed.title,author:parsed.author,body:parsed.body};S.view='detail';render();
     toast('Controlla il testo prima di salvare: la lettura può sbagliare')
   }catch(e){if(ac.signal.aborted)return;
     const st=e&&e.status;const d=(e&&e.detail)||(e&&e.message)||String(e);

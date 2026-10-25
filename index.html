@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f43b5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>iCoro</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap">
+<style>
+/* Layout: due colonne su iPad (elenco a sinistra, canto a destra), una colonna su telefono. */
+:root{
+  --bg:#f2f3f0; --surface:#ffffff; --surface2:#e9ebe6; --ink:#1b2130; --muted:#5d6577; --line:#d6d9d2;
+  --accent:#2f43b5; --accent-ink:#ffffff; --accent-soft:#e3e7fb; --danger:#a8321f;
+  --ui:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --text:'Literata',Georgia,'Times New Roman',serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1b2030; --surface2:#242a3b; --ink:#e8eaf2; --muted:#9aa2b6; --line:#2e3547;
+  --accent:#93a2ff; --accent-ink:#10142b; --accent-soft:#272e57; --danger:#ff8f7a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1b2030; --surface2:#242a3b; --ink:#e8eaf2; --muted:#9aa2b6; --line:#2e3547;
+  --accent:#93a2ff; --accent-ink:#10142b; --accent-soft:#272e57; --danger:#ff8f7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--ui);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.app{display:flex;flex-direction:column;height:100%;max-width:1400px;margin:0 auto}
+header.top{display:flex;align-items:center;gap:16px;padding:12px 0 10px;flex-wrap:wrap}
+.brand{font:600 22px/1 var(--text);letter-spacing:.01em;margin-right:auto}
+.brand small{display:block;font:500 11px/1.2 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+.tabs{display:flex;background:var(--surface2);border-radius:12px;padding:3px;gap:2px}
+.tabs button{border:0;background:transparent;padding:9px 18px;border-radius:9px;font-weight:600;color:var(--muted);min-height:44px}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.tools{display:flex;gap:6px;align-items:center}
+.sync{font-size:12px;color:var(--muted)}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;padding-bottom:max(12px,env(safe-area-inset-bottom,0px))}
+.pane{background:var(--surface);border:1px solid var(--line);border-radius:14px;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.pane-h{padding:12px;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.pane-b{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:0 14px;min-height:44px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{min-height:36px;padding:0 10px;font-size:14px}
+.btn.danger{color:var(--danger)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn:disabled{opacity:.4}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=search],input[type=date],select,textarea{width:100%;min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px}
+textarea{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:320px;resize:vertical}
+.list{list-style:none;margin:0;padding:0}
+.list li{border-bottom:1px solid var(--line)}
+.row{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;padding:12px 14px;min-height:56px}
+.row[aria-current="true"]{background:var(--accent-soft)}
+.row .t{font:600 17px/1.25 var(--text);display:block}
+.row .s{font-size:13px;color:var(--muted)}
+.row .grow{flex:1;min-width:0}
+.badge{font:600 12px/1 var(--ui);background:var(--surface2);color:var(--muted);border-radius:999px;padding:5px 9px}
+.badge.ex{background:var(--accent-soft);color:var(--accent)}
+.empty{padding:28px 20px;color:var(--muted);text-align:center}
+.empty b{display:block;color:var(--ink);font:600 18px var(--text);margin-bottom:6px}
+.detail-h{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.detail-h h2{font:600 24px/1.2 var(--text);margin:0;flex:1;min-width:160px;text-wrap:balance}
+.ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface2)}
+.ctl .lbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-left:6px}
+.key{font:700 18px var(--ui);min-width:64px;text-align:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;min-height:40px;min-width:44px;padding:0 10px;font-weight:600}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.sheet{padding:18px 22px 40px;font-family:var(--text);font-size:var(--fs,20px);line-height:1.2}
+.sheet .meta{font:14px var(--ui);color:var(--muted);margin-bottom:16px}
+.ln{margin:0 0 .5em;overflow-wrap:anywhere}
+.sg{display:inline-flex;flex-direction:column;vertical-align:bottom}
+.ch{font:700 .82em/1.5 var(--ui);color:var(--accent);padding-right:.45em;min-height:1.5em;white-space:pre}
+.tx{white-space:pre-wrap}
+.ln.plain{line-height:1.45}
+.gap{height:.9em}
+.capo{display:inline-block;font:700 .62em/1 var(--ui);letter-spacing:.08em;text-transform:uppercase;border:2px solid var(--accent);color:var(--accent);border-radius:8px;padding:.5em .75em;margin:0 0 1.2em}
+.grp{position:sticky;top:0;z-index:1;background:var(--surface2);font:700 12px/1 var(--ui);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 14px}
+.list li.grp{border-bottom:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;min-height:40px;padding:0 14px;font-weight:600}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 0;min-height:48px}
+.opt input{width:22px;height:22px;margin-top:2px}
+.sec{font:700 .62em/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:1.1em 0 .6em}
+.form{padding:14px;display:grid;gap:12px}
+.form label{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.hint code{background:var(--surface2);padding:1px 5px;border-radius:5px}
+.items li{display:flex;gap:8px;align-items:center;padding:10px 14px;flex-wrap:wrap}
+.items .n{font:600 14px var(--ui);color:var(--muted);width:22px;text-align:right}
+.items .grow{flex:1;min-width:0}
+.items .t{font:600 17px/1.25 var(--text)}
+.items input[type=text]{min-height:34px;padding:2px 8px;font-size:13px;margin-top:4px;max-width:240px}
+.mini{display:flex;gap:4px;align-items:center}
+.mini .btn{min-height:38px;min-width:38px;padding:0 8px;justify-content:center}
+.back{display:none}
+#modal{position:fixed;inset:0;background:rgba(10,12,20,.55);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:16px;padding-top:max(16px,env(safe-area-inset-top,0px))}
+#modal.on{display:flex}
+.card{background:var(--surface);border-radius:16px;width:min(560px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:700px){#modal{align-items:center}}
+.card h3{margin:0;padding:16px 18px 8px;font:600 20px var(--text)}
+.card .cb{padding:6px 18px 12px;overflow:auto}
+.card .cf{padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--line);flex-wrap:wrap}
+.pick li{display:flex;gap:12px;align-items:center;padding:6px 0;min-height:48px}
+.pick input{width:22px;height:22px}
+#toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:80;max-width:90vw}
+#toast.on{opacity:1}
+/* presentazione */
+#pres{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#pres.on{display:flex}
+.pres-h{display:flex;gap:8px;align-items:center;padding:8px 0;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.pres-h .ttl{flex:1;min-width:140px;font:600 20px/1.2 var(--text)}
+.pres-h .ttl small{display:block;font:500 12px var(--ui);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.pres-b{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.pres-b .sheet{max-width:980px;margin:0 auto}
+.pres-f{display:flex;gap:8px;padding:8px 0;align-items:center;border-top:1px solid var(--line)}
+.pres-f .btn{flex:1;justify-content:center;min-height:52px}
+.pres-f .pos{font:600 14px var(--ui);color:var(--muted);min-width:56px;text-align:center}
+@media(max-width:860px){
+  main{grid-template-columns:1fr}
+  main[data-view="detail"] .pane.listp{display:none}
+  main[data-view="list"] .pane.detailp{display:none}
+  .back{display:inline-flex}
+  .edit-grid{grid-template-columns:1fr}
+  .tools{width:100%;justify-content:space-between}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.ro [data-act="new"],.ro [data-act="edit"],.ro [data-act="addset"],.ro [data-act="newset"],.ro [data-act="pickadd"],.ro [data-act="dupset"],.ro [data-act="delset"],.ro [data-act="rm"],.ro [data-act="up"],.ro [data-act="dn"],.ro [data-act="delsong"],.ro .editonly{display:none!important}
+</style>
+<script src="config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">iCoro<small>Repertorio e scalette</small></div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-act="tab" data-v="lib" id="tab-lib">Libreria</button>
+      <button role="tab" data-act="tab" data-v="set" id="tab-set">Scalette</button>
+    </div>
+    <div class="tools">
+      <span class="sync" id="sync"></span>
+      <button class="btn sm" data-act="settings">Impostazioni</button>
+    </div>
+  </header>
+  <main id="main"></main>
+</div>
+<div id="modal" role="dialog" aria-modal="true"></div>
+<div id="pres" aria-live="polite"></div>
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- accordi ---------- */
+const IT=['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+const ITb=['Do','Reb','Re','Mib','Mi','Fa','Solb','Sol','Lab','La','Sib','Si'];
+const EN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const ENb=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const ROOT={Do:0,Re:2,Mi:4,Fa:5,Sol:7,La:9,Si:11,C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const R='(?:Sol|Si|Do|Re|Mi|Fa|La|[A-G])';
+const CH=new RegExp('^('+R+')([#b♯♭]?)((?:maj|min|dim|aug|sus|add|m|M|\\+|-|°|ø|\\d|[#b]|\\(|\\))*)(?:/('+R+')([#b♯♭]?))?$');
+const FLATKEYS=[5,10,3,8,1];
+const MOMENTI=['Ingresso','Atto penitenziale','Gloria','Salmo','Alleluia','Offertorio','Santo','Agnello di Dio','Comunione','Ringraziamento','Finale'];
+const TEMPI=['Avvento','Natale','Quaresima','Pasqua','Pentecoste','Tempo ordinario','Maria','Santi'];
+const TIPI={messa:'Messa',standard:'Scaletta standard'};
+const capoHTML=n=>n>0?'<div class="capo">Capotasto al '+n+'° tasto</div>':'';
+function parseChord(s){const m=CH.exec(s);if(!m)return null;
+  const acc=x=>x==='#'||x==='♯'?1:(x==='b'||x==='♭'?-1:0);
+  return{root:m[1],acc:acc(m[2]),suffix:m[3]||'',bass:m[4]||null,bacc:acc(m[5]||''),sys:/^(Sol|Si|Do|Re|Mi|Fa|La)$/.test(m[1])?'it':'en'};}
+function idxOf(root,acc){return((ROOT[root]+acc)%12+12)%12}
+function isMinor(p){return /^(m(?!aj)|min)/.test(p.suffix)}
+function keyIndex(chord){const p=parseChord(chord);if(!p)return null;let i=idxOf(p.root,p.acc);return isMinor(p)?(i+3)%12:i}
+function nameFor(i,sys,flats){return(sys==='it'?IT:EN)[((i%12)+12)%12]}
+function shiftChord(str,n,sys,flats){const p=parseChord(str);if(!p)return str;
+  let out=nameFor(idxOf(p.root,p.acc)+n,sys,flats)+p.suffix;
+  if(p.bass)out+='/'+nameFor(idxOf(p.bass,p.bacc)+n,sys,flats);return out}
+function firstChord(body){const re=/\[([^\]]+)\]/g;let m;while((m=re.exec(body))){if(parseChord(m[1].trim()))return m[1].trim()}return null}
+function songSys(body){const c=firstChord(body);const p=c&&parseChord(c);return p?p.sys:'it'}
+function isChordLine(l){if(!l.trim()||l.includes('['))return false;const t=l.trim().split(/\s+/);
+  if(!t.every(x=>CH.test(x)))return false;
+  if(t.length>1)return true;const x=t[0];return /[#b\d\/m\-+]/.test(x.slice(1))||/^[A-G]$/.test(x)&&x!=='E'||x.length>3}
+function normalizeBody(txt){const L=String(txt).replace(/\r/g,'').split('\n'),out=[];
+  for(let i=0;i<L.length;i++){const l=L[i];
+    if(isChordLine(l)){const toks=[...l.matchAll(/\S+/g)];const nx=L[i+1];
+      if(nx!==undefined&&nx.trim()&&!isChordLine(nx)&&!nx.includes('[')&&!/^\s*#/.test(nx)){
+        let s=nx;for(let k=toks.length-1;k>=0;k--){const pos=toks[k].index;if(s.length<pos)s=s.padEnd(pos,' ');s=s.slice(0,pos)+'['+toks[k][0]+']'+s.slice(pos)}
+        out.push(s);i++;continue}
+      out.push(toks.map(x=>'['+x[0]+']').join(' '));continue}
+    out.push(l)}
+  return out.join('\n')}
+/* tonalità mostrata dopo la trasposizione */
+function keyLabel(song,n,pref){const c=firstChord(song.body);if(!c)return song.key||'';
+  const sys=pref==='auto'?songSys(song.body):pref;const ki=keyIndex(c);
+  const flats=FLATKEYS.includes((ki+n+120)%12);return shiftChord(c,n,sys,flats)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function sheetHTML(song,n,pref){
+  const first=firstChord(song.body);const sys=pref==='auto'?songSys(song.body):pref;
+  const ki=first?keyIndex(first):0;const flats=FLATKEYS.includes((ki+n+120)%12);
+  const lines=String(song.body||'').replace(/\r/g,'').split('\n');
+  return lines.map(line=>{
+    if(/^\s*#/.test(line))return'<div class="sec">'+esc(line.replace(/^\s*#+\s*/,''))+'</div>';
+    if(!line.trim())return'<div class="gap"></div>';
+    const re=/\[([^\]]*)\]/g;const segs=[];let last=0,m,cur={c:'',t:''};
+    while((m=re.exec(line))){cur.t=line.slice(last,m.index);segs.push(cur);cur={c:m[1].trim(),t:''};last=m.index+m[0].length}
+    cur.t=line.slice(last);segs.push(cur);
+    if(segs.length===1&&!segs[0].c)return'<div class="ln plain">'+esc(line)+'</div>';
+    return'<div class="ln">'+segs.filter((s,i)=>s.c||s.t||i===0&&segs.length===1).map(s=>{
+      const c=s.c?esc(shiftChord(s.c,n,sys,flats)):'';
+      return'<span class="sg"><span class="ch">'+(c||'&nbsp;')+'</span><span class="tx">'+(esc(s.t)||(s.c?'&nbsp;':''))+'</span></span>'}).join('')+'</div>'
+  }).join('')}
+
+/* ---------- stato e archivio ---------- */
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const S={songs:[],sets:[],tab:'lib',sel:null,selSet:null,q:'',view:'list',edit:null,tr:0,
+  fs:LS.get('fs',20),idx:LS.get('idx','az'),pref:LS.get('pref','auto'),db:null,auth:null,user:null,canEdit:true,online:false,pres:null};
+const CFG=window.FIREBASE_CONFIG,HAS_FB=!!(CFG&&CFG.apiKey&&!/INCOLLA/i.test(CFG.apiKey)&&window.firebase);
+S.songs=LS.get('songs',[]);S.sets=LS.get('sets',[]);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const $=s=>document.querySelector(s);
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2800)}
+function cache(){LS.set('songs',S.songs);LS.set('sets',S.sets)}
+function setSync(){$('#sync').textContent=S.db?(S.canEdit?(S.online?'Editor \u00B7 sincronizzato':'Editor \u00B7 in attesa di rete'):(S.online?'Sola lettura':'Sola lettura \u00B7 offline')):'Solo su questo dispositivo'}
+async function persist(kind,obj){
+  cache();
+  if(!S.db||!S.canEdit)return;
+  try{await S.db.collection(kind).doc(obj.id).set(obj);S.online=true}
+  catch(e){S.online=false;toast('Non sono riuscito a salvare online: controlla l\u2019accesso e la rete')}
+  setSync()}
+async function unpersist(kind,id){cache();if(!S.db||!S.canEdit)return;try{await S.db.collection(kind).doc(id).delete()}catch(e){toast('Eliminazione online non riuscita')}}
+function upsert(arr,o){const i=arr.findIndex(x=>x.id===o.id);if(i<0)arr.push(o);else arr[i]=o}
+const saveSong=async s=>{s.updated=Date.now();upsert(S.songs,s);await persist('songs',s)};
+const saveSet=async s=>{s.updated=Date.now();upsert(S.sets,s);await persist('setlists',s)};
+
+/* ---------- dati di esempio ---------- */
+function seed(){
+  if(LS.get('seeded',false)||S.songs.length||S.sets.length)return;LS.set('seeded',true);
+  const a={id:uid(),title:'Tu scendi dalle stelle',author:'Sant’Alfonso de’ Liguori (1754)',key:'Do',example:true,
+   body:'# Strofa\n[Do]Tu scendi dalle [Fa]stelle, o [Do]Re del [Sol7]cielo,\ne [Do]vieni in una [Fa]grotta al freddo e al [Sol7]gelo.\n\n# Ritornello\nO [Do]Bambino mio di[Fa]vino,\nio ti [Do]vedo qui a tre[Sol7]mar;\no [Do]Dio be[Fa]ato! [Sol7]\nAh, quanto ti co[Do]stò l’avermi a[Fa]mato! [Do]'};
+  const b={id:uid(),title:'Esempio con accordi sopra il testo',author:'Incolla il tuo testo così e verrà convertito',key:'Re',example:true,
+   body:'# Strofa\n[Re]Questo è un [Sol]canto di [La]prova\n[Re]dove gli [Sim]accordi [La]seguono il [Re]testo'};
+  const s={id:uid(),name:'Scaletta di esempio',date:new Date().toISOString().slice(0,10),example:true,items:[{sid:a.id,tr:0,label:'Ingresso'},{sid:b.id,tr:2,label:'Comunione'}]};
+  S.songs.push(a,b);S.sets.push(s);cache();}
+
+/* ---------- viste ---------- */
+function songsFiltered(){const q=S.q.trim().toLowerCase();
+  return S.songs.slice().sort((x,y)=>x.title.localeCompare(y.title,'it')).filter(s=>!q||(s.title+' '+(s.author||'')+' '+s.body.replace(/\[[^\]]*\]/g,'')).toLowerCase().includes(q))}
+function rowHTML(s){return'<li><button class="row" data-act="open" data-id="'+s.id+'" '+(S.sel===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.title)+'</span><span class="s">'+esc(s.author||'')+'</span></span>'+(s.example?'<span class="badge ex">esempio</span>':'')+(firstChord(s.body)?'<span class="badge">'+esc(keyLabel(s,0,S.pref))+'</span>':'')+'</button></li>'}
+function letterOf(t){const c=t.trim().charAt(0).normalize('NFD').charAt(0).toUpperCase();return/[A-Z]/.test(c)?c:'#'}
+function listItems(){const L=songsFiltered();
+  if(!S.songs.length)return'<div class="empty"><b>La libreria \u00E8 vuota</b>Se sei un editor, accedi da Impostazioni e aggiungi il primo canto con \u201CNuovo canto\u201D.</div>';
+  if(!L.length)return'<div class="empty"><b>Nessun risultato</b>Prova con un\u2019altra parola del titolo o del testo.</div>';
+  const groups=[];
+  if(S.idx==='az'){const m=new Map();L.forEach(x=>{const k=letterOf(x.title);if(!m.has(k))m.set(k,[]);m.get(k).push(x)});[...m.keys()].sort().forEach(k=>groups.push([k,m.get(k)]))}
+  else{const names=S.idx==='momento'?MOMENTI:TEMPI;
+    names.forEach(n=>{const g=L.filter(x=>(x.tags||[]).includes(n));if(g.length)groups.push([n,g])});
+    const rest=L.filter(x=>!(x.tags||[]).some(t=>names.includes(t)));if(rest.length)groups.push([S.idx==='momento'?'Senza momento':'Senza tempo liturgico',rest])}
+  return'<ul class="list">'+groups.map(g=>'<li class="grp">'+esc(g[0])+' \u00B7 '+g[1].length+'</li>'+g[1].map(rowHTML).join('')).join('')+'</ul>'}
+function viewLib(){
+  const song=S.songs.find(s=>s.id===S.sel);
+  $('#main').dataset.view=(S.view==='detail'||S.edit)?'detail':'list';
+  let h='<section class="pane listp"><div class="pane-h"><input type="search" id="q" placeholder="Cerca titolo o parole del testo" value="'+esc(S.q)+'" aria-label="Cerca">'
+   +'<button class="btn pri" data-act="new">+ Nuovo canto</button>'
+   +'<div class="seg" style="width:100%" role="group" aria-label="Indice">'+[['az','A\u2013Z'],['momento','Momento'],['tempo','Tempo liturgico']].map(x=>'<button style="flex:1" data-act="idx" data-v="'+x[0]+'" aria-pressed="'+(S.idx===x[0])+'">'+x[1]+'</button>').join('')+'</div></div>'
+   +'<div class="pane-b" id="listBody">'+listItems()+'</div></section>';
+  h+='<section class="pane detailp">'+(S.edit?editorHTML():song?songHTML(song):'<div class="empty" style="margin:auto"><b>Scegli un canto</b>Qui vedrai testo e accordi, con la trasposizione.</div>')+'</section>';
+  $('#main').innerHTML=h;
+  if(S.edit)bindEditor();
+}
+function transposeBar(n,song,withAdd){const kl=keyLabel(song,n,S.pref);
+  return'<div class="ctl"><span class="lbl">Tonalità</span><div class="seg"><button data-act="tr" data-d="-1" aria-label="Un semitono sotto">−</button><button class="key" data-act="tr0" aria-label="Torna all’originale" style="min-width:76px">'+esc(kl||'–')+'</button><button data-act="tr" data-d="1" aria-label="Un semitono sopra">+</button></div>'
+  +(n?'<span class="sync">'+(n>0?'+':'')+n+' semitoni</span>':'')
+  +'<span class="lbl">Capotasto</span><div class="seg"><button data-act="capo" data-d="-1" aria-label="Capotasto pi\u00F9 basso">\u2212</button><button class="key" disabled style="min-width:52px">'+(song.capo||'\u2013')+'</button><button data-act="capo" data-d="1" aria-label="Capotasto pi\u00F9 alto">+</button></div>'
+  +'<span class="lbl">Testo</span><div class="seg"><button data-act="fs" data-d="-2" aria-label="Testo più piccolo">A−</button><button data-act="fs" data-d="2" aria-label="Testo più grande">A+</button></div></div>'}
+function songHTML(s){
+  return'<div class="detail-h"><button class="btn sm ghost back" data-act="back">← Elenco</button><h2>'+esc(s.title)+'</h2>'
+  +'<button class="btn" data-act="pres1">Presenta</button><button class="btn" data-act="addset">Aggiungi a scaletta</button><button class="btn" data-act="edit">Modifica</button></div>'
+  +transposeBar(S.tr,s)
+  +'<div class="pane-b"><div class="sheet" style="--fs:'+S.fs+'px">'+(s.author?'<div class="meta">'+esc(s.author)+'</div>':'')+((s.tags||[]).length?'<div class="tags">'+s.tags.map(t=>'<span class="badge">'+esc(t)+'</span>').join('')+'</div>':'')+capoHTML(s.capo||0)+sheetHTML(s,S.tr,S.pref)+'</div></div>'}
+function editorHTML(){const e=S.edit;
+  return'<div class="detail-h"><button class="btn sm ghost back" data-act="cancel">← Annulla</button><h2>'+(e.isNew?'Nuovo canto':'Modifica canto')+'</h2>'
+  +'<button class="btn" data-act="cancel">Annulla</button><button class="btn pri" data-act="save">Salva</button></div>'
+  +'<div class="pane-b"><div class="form">'
+  +(e.fromPhoto?'<p class="hint" style="color:var(--danger);font-weight:600">Testo letto dalla foto da Claude. Confrontalo con il libro prima di salvare: parole e accordi potrebbero contenere errori.</p>':'')
+  +'<div class="two"><label>Titolo<input type="text" id="e-title" value="'+esc(e.title)+'"></label><label>Autore o fonte (facoltativo)<input type="text" id="e-author" value="'+esc(e.author||'')+'"></label></div>'
+  +'<div><div class="hint" style="margin-bottom:6px;font-weight:600">Momento della messa</div><div class="chips">'+MOMENTI.map(t=>'<button data-act="tag" data-t="'+t+'" aria-pressed="'+((e.tags||[]).includes(t))+'">'+t+'</button>').join('')+'</div><div class="hint" style="margin:10px 0 6px;font-weight:600">Tempo liturgico e altro</div><div class="chips">'+TEMPI.map(t=>'<button data-act="tag" data-t="'+t+'" aria-pressed="'+((e.tags||[]).includes(t))+'">'+t+'</button>').join('')+'</div></div>'
+  +'<div class="edit-grid"><label>Testo con accordi<textarea id="e-body" spellcheck="false" placeholder="[Do]Tu scendi dalle [Fa]stelle...">'+esc(e.body)+'</textarea></label>'
+  +'<div><div class="hint" style="margin-bottom:6px;font-weight:600">Anteprima</div><div class="sheet" id="e-prev" style="--fs:'+Math.min(S.fs,20)+'px;padding:8px 0"></div></div></div>'
+  +'<p class="hint">Scrivi l’accordo tra parentesi quadre subito prima della sillaba: <code>[Do]Tu scendi dalle [Fa]stelle</code>. Se invece incolli gli accordi sulla riga sopra il testo, premi “Converti”. Una riga che inizia con # è un titolo di sezione (Strofa, Ritornello).</p>'
+  +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="convert">Converti accordi sopra il testo</button><label class="btn" style="cursor:pointer">Carica da file di testo<input type="file" id="e-file" accept=".txt,.pro,.cho,.crd,.chordpro,text/plain" hidden></label>'
+  +(e.isNew?'':'<button class="btn danger" data-act="delsong" style="margin-left:auto">Elimina canto</button>')+'</div></div></div>'}
+function bindEditor(){const body=$('#e-body'),prev=$('#e-prev');
+  const upd=()=>{S.edit.body=body.value;prev.innerHTML=sheetHTML({body:body.value},0,S.pref)};upd();
+  body.addEventListener('input',upd);
+  $('#e-title').addEventListener('input',e=>S.edit.title=e.target.value);
+  $('#e-author').addEventListener('input',e=>S.edit.author=e.target.value);
+  $('#e-file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
+    const t=await f.text();body.value=t;if(!$('#e-title').value){$('#e-title').value=f.name.replace(/\.[^.]+$/,'');S.edit.title=$('#e-title').value}upd()})}
+
+/* scalette */
+const sortedSets=()=>S.sets.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||a.name.localeCompare(b.name,'it'));
+function fmtDate(d){if(!d)return'';const x=new Date(d+'T12:00:00');return isNaN(x)?d:x.toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}
+function viewSet(){
+  const set=S.sets.find(s=>s.id===S.selSet);
+  $('#main').dataset.view=S.view==='detail'?'detail':'list';
+  let l=sortedSets().map(s=>'<li><button class="row" data-act="openset" data-id="'+s.id+'" '+(S.selSet===s.id?'aria-current="true"':'')+'><span class="grow"><span class="t">'+esc(s.name)+'</span><span class="s">'+esc(fmtDate(s.date))+' · '+s.items.length+(s.items.length===1?' canto':' canti')+'</span></span>'+'<span class="badge">'+esc(TIPI[s.type]||TIPI.standard)+'</span>'+(s.example?'<span class="badge ex">esempio</span>':'')+'</button></li>').join('');
+  let h='<section class="pane listp"><div class="pane-h"><button class="btn pri" data-act="newset">+ Nuova scaletta</button></div><div class="pane-b">'
+   +(l?'<ul class="list">'+l+'</ul>':'<div class="empty"><b>Nessuna scaletta</b>Crea una scaletta per la messa della domenica o per un altro evento, poi scegli i canti.</div>')+'</div></section>';
+  h+='<section class="pane detailp">'+(set?setHTML(set):'<div class="empty" style="margin:auto"><b>Scegli una scaletta</b>Oppure creane una nuova.</div>')+'</section>';
+  $('#main').innerHTML=h}
+function setHTML(set){
+  const rows=set.items.map((it,i)=>{const s=S.songs.find(x=>x.id===it.sid);
+    if(!s)return'<li><span class="n">'+(i+1)+'</span><span class="grow"><span class="t" style="color:var(--danger)">Canto eliminato</span></span><button class="btn sm danger" data-act="rm" data-i="'+i+'">Togli</button></li>';
+    const kl=keyLabel(s,it.tr||0,S.pref);
+    return'<li><span class="n">'+(i+1)+'</span><span class="grow"><span class="t">'+esc(s.title)+'</span><br><input type="text" list="momenti" data-act="lbl" data-i="'+i+'" value="'+esc(it.label||'')+'" placeholder="Momento (es. Ingresso)" aria-label="Momento della celebrazione"></span>'
+    +'<div class="mini" title="Capotasto"><span class="sync">Capo</span><button class="btn" data-act="icapo" data-i="'+i+'" data-d="-1" aria-label="Capotasto pi\u00F9 basso">\u2212</button><b class="key" style="min-width:30px">'+(it.capo||'\u2013')+'</b><button class="btn" data-act="icapo" data-i="'+i+'" data-d="1" aria-label="Capotasto pi\u00F9 alto">+</button></div>'
+    +'<div class="mini"><button class="btn" data-act="itr" data-i="'+i+'" data-d="-1" aria-label="Semitono sotto">−</button><b class="key" style="min-width:52px">'+esc(kl||'–')+'</b><button class="btn" data-act="itr" data-i="'+i+'" data-d="1" aria-label="Semitono sopra">+</button></div>'
+    +'<div class="mini"><button class="btn" data-act="up" data-i="'+i+'" aria-label="Sposta su" '+(i?'':'disabled')+'>↑</button><button class="btn" data-act="dn" data-i="'+i+'" aria-label="Sposta giù" '+(i<set.items.length-1?'':'disabled')+'>↓</button><button class="btn danger" data-act="rm" data-i="'+i+'" aria-label="Togli dalla scaletta">×</button></div></li>'}).join('');
+  return'<div class="detail-h"><button class="btn sm ghost back" data-act="back">← Elenco</button><h2>'+esc(set.name)+'</h2><button class="btn pri" data-act="presset" '+(set.items.length?'':'disabled')+'>Presenta</button></div>'
+  +'<div class="pane-b"><div class="form"><div class="two"><label>Nome<input type="text" id="s-name" value="'+esc(set.name)+'"></label><label>Tipo<select id="s-type">'+Object.keys(TIPI).map(k=>'<option value="'+k+'" '+((set.type||'standard')===k?'selected':'')+'>'+TIPI[k]+'</option>').join('')+'</select></label></div><label style="max-width:260px">Data<input type="date" id="s-date" value="'+esc(set.date||'')+'"></label><datalist id="momenti">'+((set.type||'standard')==='messa'?MOMENTI.map(m=>'<option value="'+m+'">').join(''):'')+'</datalist></div>'
+  +(rows?'<ul class="list items">'+rows+'</ul>':'<div class="empty"><b>Scaletta vuota</b>Aggiungi i canti nell’ordine in cui li suonerai.</div>')
+  +'<div class="form" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="pickadd">+ Aggiungi canti</button><button class="btn" data-act="dupset">Duplica</button><button class="btn danger" data-act="delset" style="margin-left:auto">Elimina scaletta</button></div></div>'}
+
+function render(){
+  $('#tab-lib').setAttribute('aria-selected',S.tab==='lib');$('#tab-set').setAttribute('aria-selected',S.tab==='set');
+  if(S.tab==='lib')viewLib();else viewSet();
+  if(S.db&&!S.canEdit)document.querySelectorAll('#s-name,#s-type,#s-date,[data-act=lbl]').forEach(e=>e.disabled=true);
+  const sn=$('#s-name');if(sn){sn.addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.name=e.target.value.trim()||'Scaletta';await saveSet(s);render()});
+    $('#s-type').addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.type=e.target.value;await saveSet(s);render()});
+    $('#s-date').addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.date=e.target.value;await saveSet(s);render()})}
+  setSync()}
+
+/* ---------- modali ---------- */
+function modal(title,body,foot){const m=$('#modal');m.innerHTML='<div class="card"><h3>'+title+'</h3><div class="cb">'+body+'</div><div class="cf">'+foot+'</div></div>';m.classList.add('on')}
+function closeModal(){$('#modal').classList.remove('on');$('#modal').innerHTML=''}
+function ask(title,text,okLabel,fn,danger){modal(esc(title),'<p>'+esc(text)+'</p>','<button class="btn" data-act="mclose">Annulla</button><button class="btn '+(danger?'danger':'pri')+'" id="mok">'+esc(okLabel)+'</button>');$('#mok').onclick=()=>{closeModal();fn()}}
+function pickSongs(cb){
+  const chosen=new Set();
+  const draw=()=>{const q=($('#pq')||{value:''}).value.toLowerCase(),tg=($('#pt')||{value:''}).value;
+    $('#plist').innerHTML=S.songs.slice().sort((a,b)=>a.title.localeCompare(b.title,'it')).filter(s=>(!q||(s.title+(s.author||'')).toLowerCase().includes(q))&&(!tg||(s.tags||[]).includes(tg))).map(s=>'<li><label><input type="checkbox" value="'+s.id+'" '+(chosen.has(s.id)?'checked':'')+'><span><b style="font-family:var(--text)">'+esc(s.title)+'</b><br><span class="sync">'+esc(s.author||'')+'</span></span></label></li>').join('')||'<li class="empty">Nessun canto</li>';
+    $('#pn').textContent=chosen.size?'Aggiungi ('+chosen.size+')':'Aggiungi'};
+  modal('Scegli i canti','<div class="two" style="margin-bottom:8px"><input type="search" id="pq" placeholder="Cerca" aria-label="Cerca canto"><select id="pt" aria-label="Filtra per momento o tempo"><option value="">Tutti i canti</option>'+MOMENTI.concat(TEMPI).map(t=>'<option>'+t+'</option>').join('')+'</select></div><ul class="list pick" id="plist" style="max-height:50vh;overflow:auto"></ul><p class="hint">I canti vengono aggiunti nell’ordine in cui li selezioni.</p>','<button class="btn" data-act="mclose">Annulla</button><button class="btn pri" id="pok"><span id="pn">Aggiungi</span></button>');
+  draw();$('#pq').addEventListener('input',draw);$('#pt').addEventListener('change',draw);
+  $('#plist').addEventListener('change',e=>{if(e.target.type!=='checkbox')return;e.target.checked?chosen.add(e.target.value):chosen.delete(e.target.value);draw()});
+  $('#pok').onclick=()=>{closeModal();if(chosen.size)cb([...chosen])}}
+
+/* ---------- presentazione ---------- */
+let wake=null;
+async function lockOn(){try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}}
+function lockOff(){try{wake&&wake.release()}catch(e){}wake=null}
+function openPres(items,start,title){
+  const list=items.map(x=>{const sg=S.songs.find(s=>s.id===x.sid);return{song:sg,tr:x.tr||0,label:x.label||'',capo:x.capo!=null?x.capo:(sg&&sg.capo)||0}}).filter(x=>x.song);
+  if(!list.length)return;S.pres={list,i:start||0,title,fs:Math.max(S.fs,26)};drawPres();$('#pres').classList.add('on');lockOn()}
+function drawPres(){const p=S.pres,it=p.list[p.i];
+  $('#pres').innerHTML='<div class="pres-h"><button class="btn" data-act="pclose">Chiudi</button><div class="ttl"><small>'+esc((p.title||'')+(it.label?' · '+it.label:''))+'</small>'+esc(it.song.title)+'</div>'
+  +'<div class="seg"><button data-act="ptr" data-d="-1" aria-label="Semitono sotto">−</button><button class="key" data-act="ptr0" style="min-width:76px">'+esc(keyLabel(it.song,it.tr,S.pref)||'–')+'</button><button data-act="ptr" data-d="1" aria-label="Semitono sopra">+</button></div>'
+  +'<div class="seg"><button data-act="pfs" data-d="-2" aria-label="Testo più piccolo">A−</button><button data-act="pfs" data-d="2" aria-label="Testo più grande">A+</button></div>'
+  +(p.list.length>1?'<button class="btn" data-act="pindex">Indice</button>':'')+'</div>'
+  +'<div class="pres-b" id="pb"><div class="sheet" style="--fs:'+p.fs+'px">'+capoHTML(it.capo)+sheetHTML(it.song,it.tr,S.pref)+'</div></div>'
+  +'<div class="pres-f"><button class="btn" data-act="pprev" '+(p.i?'':'disabled')+'>← Precedente</button><span class="pos">'+(p.i+1)+' / '+p.list.length+'</span><button class="btn pri" data-act="pnext" '+(p.i<p.list.length-1?'':'disabled')+'>Successivo →</button></div>'}
+function pgo(d){const p=S.pres;const j=p.i+d;if(j<0||j>=p.list.length)return;p.i=j;drawPres()}
+let tx=null;
+document.addEventListener('touchstart',e=>{if(S.pres&&$('#pres').classList.contains('on')&&e.target.closest('.pres-b'))tx=[e.touches[0].clientX,e.touches[0].clientY]},{passive:true});
+document.addEventListener('touchend',e=>{if(!tx)return;const dx=e.changedTouches[0].clientX-tx[0],dy=e.changedTouches[0].clientY-tx[1];tx=null;
+  if(Math.abs(dx)>90&&Math.abs(dx)>Math.abs(dy)*2)pgo(dx<0?1:-1)},{passive:true});
+document.addEventListener('keydown',e=>{if(!$('#pres').classList.contains('on'))return;
+  if(e.key==='ArrowRight')pgo(1);else if(e.key==='ArrowLeft')pgo(-1);else if(e.key==='Escape')closePres()});
+function closePres(){$('#pres').classList.remove('on');$('#pres').innerHTML='';S.pres=null;lockOff()}
+
+/* ---------- impostazioni e backup ---------- */
+function settings(){
+  modal('Impostazioni','<p style="margin:0 0 6px;font-weight:600">Nomi degli accordi</p><div class="seg" id="sp"><button data-act="pref" data-v="auto" aria-pressed="'+(S.pref==='auto')+'">Come nel libro</button><button data-act="pref" data-v="it" aria-pressed="'+(S.pref==='it')+'">Do Re Mi</button><button data-act="pref" data-v="en" aria-pressed="'+(S.pref==='en')+'">C D E</button></div>'
+   +(S.db?'<p style="margin:16px 0 6px;font-weight:600">Accesso editor</p>'+(S.user?'<p class="hint">Sei dentro come '+esc(S.user.email)+'. Puoi modificare canti e scalette per tutto il coro.</p><button class="btn" data-act="logout">Esci</button>':'<p class="hint">Solo chi cura il repertorio ha bisogno di accedere. Tutti gli altri leggono e basta.</p><div class="form" style="padding:0"><label>Email<input type="email" id="lg-mail" autocomplete="username"></label><label>Password<input type="password" id="lg-pw" autocomplete="current-password"></label></div><button class="btn pri" data-act="login" style="margin-top:8px">Accedi</button>'):'')
+   +'<p class="hint editonly" style="margin-top:14px">Copia di sicurezza: scarica tutti i canti e le scalette in un file, o ricaricali da un file salvato prima.</p>'
+   +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="export">Scarica copia</button><label class="btn editonly" style="cursor:pointer">Ripristina da file<input type="file" id="imp" accept=".json,application/json" hidden></label></div>','<button class="btn pri" data-act="mclose">Fatto</button>');
+  if($('#imp'))$('#imp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
+    try{const d=JSON.parse(await f.text());let n=0;for(const s of d.songs||[]){if(s.id&&s.title){await saveSong(s);n++}}for(const s of d.sets||[]){if(s.id&&s.name){await saveSet(s)}}closeModal();render();toast('Ripristinati '+n+' canti')}catch(err){toast('File non valido')}})}
+
+/* ---------- azioni ---------- */
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;$('#listBody').innerHTML=listItems()}});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.act==='lbl'){const s=S.sets.find(x=>x.id===S.selSet);s.items[+t.dataset.i].label=t.value.trim();await saveSet(s)}});
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.tagName==='INPUT')return;const a=b.dataset.act,d=+b.dataset.d,i=+b.dataset.i;
+  const song=S.songs.find(s=>s.id===S.sel),set=S.sets.find(s=>s.id===S.selSet);
+  switch(a){
+  case'tab':S.tab=b.dataset.v;S.view='list';S.edit=null;render();break;
+  case'open':S.sel=b.dataset.id;S.tr=0;S.view='detail';S.edit=null;render();break;
+  case'back':S.view='list';S.edit=null;render();break;
+  case'new':S.edit={isNew:true,title:'',author:'',body:''};S.view='detail';render();break;
+  case'edit':S.edit={...song};render();break;
+  case'cancel':S.edit=null;S.view=S.sel?'detail':'list';render();break;
+  case'convert':{const el=$('#e-body');el.value=normalizeBody(el.value);el.dispatchEvent(new Event('input'));toast('Accordi spostati dentro il testo');break}
+  case'save':{const ed=S.edit;ed.title=($('#e-title').value||'').trim();ed.author=$('#e-author').value.trim();ed.body=normalizeBody($('#e-body').value);
+    if(!ed.title){toast('Scrivi un titolo');return}if(!ed.body.trim()){toast('Il canto è vuoto');return}
+    const o={id:ed.id||uid(),title:ed.title,author:ed.author,body:ed.body,tags:ed.tags||[],capo:ed.capo||0,key:keyLabel({body:ed.body},0,'auto'),example:false};
+    await saveSong(o);S.sel=o.id;S.edit=null;S.view='detail';S.tr=0;render();toast('Canto salvato');break}
+  case'delsong':ask('Eliminare questo canto?','“'+song.title+'” sparirà dalla libreria e dalle scalette.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==song.id);await unpersist('songs',song.id);S.sel=null;S.edit=null;S.view='list';render()},true);break;
+  case'idx':S.idx=b.dataset.v;LS.set('idx',S.idx);render();break;
+  case'tag':{const t=b.dataset.t,a2=S.edit.tags=S.edit.tags||[];const k=a2.indexOf(t);k<0?a2.push(t):a2.splice(k,1);b.setAttribute('aria-pressed',k<0);break}
+  case'capo':song.capo=Math.max(0,Math.min(11,(song.capo||0)+d));await saveSong(song);render();break;
+  case'tr':S.tr+=d;render();break;
+  case'tr0':S.tr=0;render();break;
+  case'fs':S.fs=Math.max(14,Math.min(48,S.fs+d));LS.set('fs',S.fs);render();break;
+  case'pres1':openPres([{sid:song.id,tr:S.tr}],0,'');break;
+  case'addset':{
+    const opts=sortedSets();
+    modal('Aggiungi a una scaletta',(opts.length?'<ul class="list">'+opts.map(s=>'<li><button class="row" data-act="addto" data-id="'+s.id+'"><span class="grow"><span class="t">'+esc(s.name)+'</span><span class="s">'+esc(fmtDate(s.date))+'</span></span></button></li>').join('')+'</ul>':'<p>Non hai ancora scalette.</p>'),'<button class="btn" data-act="mclose">Chiudi</button><button class="btn pri" data-act="addtonew">Nuova scaletta</button>');break}
+  case'addto':{const s=S.sets.find(x=>x.id===b.dataset.id);s.items.push({sid:song.id,tr:S.tr,capo:song.capo||0,label:''});await saveSet(s);closeModal();toast('Aggiunto a “'+s.name+'”');break}
+  case'addtonew':{const s={id:uid(),type:'standard',name:'Nuova scaletta',date:new Date().toISOString().slice(0,10),items:[{sid:song.id,tr:S.tr,capo:song.capo||0,label:''}]};await saveSet(s);closeModal();S.tab='set';S.selSet=s.id;S.view='detail';render();break}
+  case'mclose':closeModal();break;
+  case'settings':settings();break;
+  case'login':{const m=($('#lg-mail').value||'').trim(),p=$('#lg-pw').value;if(!m||!p){toast('Scrivi email e password');break}
+    try{await S.auth.signInWithEmailAndPassword(m,p);closeModal();toast('Accesso effettuato')}catch(err){toast('Email o password non corretti')}break}
+  case'logout':await S.auth.signOut();closeModal();toast('Sei uscito');break;
+  case'pref':S.pref=b.dataset.v;LS.set('pref',S.pref);document.querySelectorAll('#sp button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.pref));render();break;
+  case'export':{const blob=new Blob([JSON.stringify({version:1,songs:S.songs,sets:S.sets},null,1)],{type:'application/json'});const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download='icoro-copia.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);break}
+  /* scalette */
+  case'openset':S.selSet=b.dataset.id;S.view='detail';render();break;
+  case'newset':{modal('Nuova scaletta','<div class="form" style="padding:0"><label>Tipo<div class="chips" id="nt"><button data-act="ntype" data-v="messa" aria-pressed="true">Messa</button><button data-act="ntype" data-v="standard" aria-pressed="false">Scaletta standard</button></div></label><label>Nome<input type="text" id="n-name" value="Messa"></label><label>Data<input type="date" id="n-date" value="'+new Date().toISOString().slice(0,10)+'"></label></div>','<button class="btn" data-act="mclose">Annulla</button><button class="btn pri" id="nok">Crea</button>');
+    S.nt='messa';$('#nok').onclick=async()=>{const s={id:uid(),type:S.nt,name:$('#n-name').value.trim()||TIPI[S.nt],date:$('#n-date').value,items:[]};closeModal();await saveSet(s);S.selSet=s.id;S.view='detail';render()};break}
+  case'ntype':{S.nt=b.dataset.v;document.querySelectorAll('#nt button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.nt));const nm=$('#n-name');if(nm&&(nm.value==='Messa'||nm.value==='Scaletta standard'||!nm.value))nm.value=TIPI[S.nt];break}
+  case'dupset':{const c={...set,id:uid(),name:set.name+' (copia)',example:false,items:set.items.map(x=>({...x}))};await saveSet(c);S.selSet=c.id;render();break}
+  case'delset':ask('Eliminare la scaletta?','“'+set.name+'” verrà eliminata. I canti restano nella libreria.','Elimina',async()=>{S.sets=S.sets.filter(x=>x.id!==set.id);await unpersist('setlists',set.id);S.selSet=null;S.view='list';render()},true);break;
+  case'pickadd':pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:''})});await saveSet(set);render()});break;
+  case'rm':set.items.splice(i,1);await saveSet(set);render();break;
+  case'up':case'dn':{const j=a==='up'?i-1:i+1;if(j<0||j>=set.items.length)break;[set.items[i],set.items[j]]=[set.items[j],set.items[i]];await saveSet(set);render();break}
+  case'icapo':set.items[i].capo=Math.max(0,Math.min(11,(set.items[i].capo||0)+d));await saveSet(set);render();break;
+  case'itr':set.items[i].tr=(set.items[i].tr||0)+d;await saveSet(set);render();break;
+  case'presset':openPres(set.items,0,set.name);break;
+  /* presentazione */
+  case'pclose':closePres();break;
+  case'pnext':pgo(1);break;case'pprev':pgo(-1);break;
+  case'ptr':S.pres.list[S.pres.i].tr+=d;drawPres();break;
+  case'ptr0':S.pres.list[S.pres.i].tr=0;drawPres();break;
+  case'pfs':S.pres.fs=Math.max(16,Math.min(64,S.pres.fs+d));drawPres();break;
+  case'pindex':{const p=S.pres;modal('Indice',  '<ul class="list">'+p.list.map((x,k)=>'<li><button class="row" data-act="pjump" data-i="'+k+'" '+(k===p.i?'aria-current="true"':'')+'><span class="grow"><span class="t">'+(k+1)+'. '+esc(x.song.title)+'</span><span class="s">'+esc(x.label)+'</span></span></button></li>').join('')+'</ul>','<button class="btn" data-act="mclose">Chiudi</button>');break}
+  case'pjump':closeModal();S.pres.i=i;drawPres();break;
+  }});
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+
+/* ---------- avvio ---------- */
+if(!HAS_FB)seed();render();
+(function(){
+  if(!HAS_FB){setSync();return}
+  firebase.initializeApp(CFG);
+  const db=firebase.firestore();
+  try{db.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){}
+  S.db=db;S.auth=firebase.auth();S.canEdit=false;document.body.classList.add('ro');
+  S.auth.onAuthStateChanged(u=>{S.user=u;S.canEdit=!!u;document.body.classList.toggle('ro',!u);setSync();
+    if(!S.edit&&!S.pres&&!$('#modal').classList.contains('on'))render()});
+  setSync();
+  const sub=(name,key)=>db.collection(name).onSnapshot(snap=>{
+    const docs=snap.docs.map(d=>({...d.data(),id:d.id}));
+    if(snap.metadata.fromCache&&!docs.length)return;
+    S[key]=docs;S.online=!snap.metadata.fromCache||S.online;cache();
+    if(S.sel&&!S.songs.find(x=>x.id===S.sel))S.sel=null;
+    if(S.selSet&&!S.sets.find(x=>x.id===S.selSet))S.selSet=null;
+    if(!S.edit&&!S.pres&&!$('#modal').classList.contains('on')&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)))render();else setSync()},
+    err=>{S.online=false;setSync()});
+  sub('songs','songs');sub('setlists','sets');
+  window.addEventListener('online',()=>{S.online=true;setSync()});window.addEventListener('offline',()=>{S.online=false;setSync()});
+})();
+})();
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body></html>

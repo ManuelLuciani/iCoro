@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Tutti possono leggere canti e scalette.
+    // Solo gli indirizzi email elencati qui sotto possono modificare.
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.token.email in [
+          'manuel.luciani.1998@gmail.com'
+          // , 'altro.editor@esempio.it'
+        ];
+    }
+  }
+}

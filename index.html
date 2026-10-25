@@ -139,6 +139,15 @@ textarea{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:3
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .ro [data-act="new"],.ro [data-act="edit"],.ro [data-act="addset"],.ro [data-act="newset"],.ro [data-act="pickadd"],.ro [data-act="dupset"],.ro [data-act="delset"],.ro [data-act="rm"],.ro [data-act="up"],.ro [data-act="dn"],.ro [data-act="delsong"],.ro .editonly{display:none!important}
+
+.ring{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0 4px}
+.ring svg{width:130px;height:130px;transform:rotate(-90deg)}
+.ring .bg{fill:none;stroke:var(--surface2);stroke-width:10}
+.ring .fg{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;stroke-dasharray:326.7;stroke-dashoffset:326.7;transition:stroke-dashoffset .25s linear}
+.ring .pc{position:absolute;font:700 28px var(--ui);color:var(--ink)}
+.ring .wrap{position:relative;display:flex;align-items:center;justify-content:center}
+.ring .st{font-size:14px;color:var(--muted);text-align:center}
+.pbar{height:6px;border-radius:3px;background:var(--surface2);width:100%;overflow:hidden}.pbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s linear}
 </style>
 <script src="config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -446,18 +455,22 @@ function buildFromJSON(raw){
 async function fromPhotos(files){
   const key=LS.get('gkey','');
   if(!key){toast('Prima inserisci la chiave Gemini nelle Impostazioni');settings();return}
-  modal('Sto leggendo la pagina','<p>Trascrivo testo e accordi dalla foto. Ci vuole qualche decina di secondi.</p>','<button class="btn" id="pabort">Annulla</button>');
-  const ac=new AbortController();$('#pabort').onclick=()=>{ac.abort();closeModal()};
+  modal('Sto leggendo la pagina','<div class="ring"><div class="wrap"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="bg" cx="60" cy="60" r="52"/><circle class="fg" id="pfg" cx="60" cy="60" r="52"/></svg><span class="pc" id="ppc" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">0%</span></div><div class="st" id="pst">Preparo le foto</div><div class="pbar" aria-hidden="true"><i id="pbr"></i></div><p class="hint" style="text-align:center;margin:0">La percentuale è una stima: dipende dalla velocità di Google.</p></div>','<button class="btn" id="pabort">Annulla</button>');
+  let pv=0,tick=null;const prog=(p,l)=>{pv=Math.max(pv,Math.min(100,p));const r=Math.round(pv);const f=$('#pfg');if(!f)return;f.style.strokeDashoffset=(326.7*(1-pv/100)).toFixed(1);$('#ppc').textContent=r+'%';$('#ppc').setAttribute('aria-valuenow',r);$('#pbr').style.width=pv+'%';if(l)$('#pst').textContent=l};
+  const ac=new AbortController();$('#pabort').onclick=()=>{ac.abort();clearInterval(tick);closeModal()};
   try{
     const parts=[];
     const prompt='Ti allego la foto di una o più pagine di un libro di canti per la chiesa, con testo e accordi (stampato o scritto a mano). Trascrivi il primo canto come JSON, senza altro testo.\nFormato: {"titolo":"...","autore":"...","righe":[ ... ]}. Ogni elemento di "righe" è uno di questi, nell’ordine della pagina:\n- {"t":"nota","testo":"..."} per righe come il tempo o la tonalità sotto il titolo (es. 6/8 - Largo in Re Maggiore);\n- {"t":"sezione","testo":"..."} per etichette come Strofa, Ritornello, Strumentale, quando sono su una riga a sé senza accordi;\n- {"t":"accordi","testo":"RE / SOL / SI- / LA4"} per righe di soli accordi (intro, strumentale, anche se hanno un’etichetta davanti: in quel caso usa {"t":"accordi","testo":"INTRO: RE / SOL"}); copia gli accordi e i separatori esattamente come nel libro, anche in maiuscolo;\n- {"t":"testo","testo":"<riga di parole>","accordi":[{"a":"RE","prima":"<parole che precedono l’accordo>"}]} per ogni riga di parole;\n- {"t":"vuota"} per una riga vuota tra le strofe.\nCome si compilano gli accordi di una riga di parole: ogni accordo è scritto sopra la riga, esattamente sopra una lettera. In "prima" scrivi, carattere per carattere uguale a "testo", tutto il testo della riga che sta a SINISTRA di quella lettera, cioè le lettere che precedono il punto in cui comincia l’accordo (stringa vuota se l’accordo è sopra la prima lettera). Se l’accordo cade a metà di una parola, "prima" finisce a metà di quella parola, sulla sillaba giusta. Guarda con cura la posizione orizzontale di ogni accordo rispetto alle lettere sotto di lui. Elenca gli accordi della riga da sinistra a destra. Un accordo tra parentesi nel libro, come (RE), va scritto con le parentesi in "a". Copia gli accordi come scritti (RE, SOL, SI-, LA4, Do, Lam, C, Am).\nCopia le parole fedelmente, con maiuscole e minuscole normali di una frase. Non inventare e non correggere nulla: dove una parola o un accordo non è leggibile scrivi [?] al suo posto. Se nella foto c’è più di un canto, trascrivi solo il primo.';
     parts.push({text:prompt});
-    for(const f of [...files].slice(0,3)){let bl;try{bl=await shrink(f)}catch(er){const x=new Error('foto');x.detail='Non riesco ad aprire la foto ('+(f.type||'formato sconosciuto')+'). Prova a scattarla di nuovo o a scegliere un JPEG.';throw x}parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(bl)}})}
-    const t=await gemini(key,parts,ac.signal);
-    const parsed=buildFromJSON(t);
+    const fl=[...files].slice(0,3);let fi=0;
+    for(const f of fl){prog(2+13*fi/fl.length,'Preparo la foto '+(fi+1)+' di '+fl.length);fi++;let bl;try{bl=await shrink(f)}catch(er){const x=new Error('foto');x.detail='Non riesco ad aprire la foto ('+(f.type||'formato sconosciuto')+'). Prova a scattarla di nuovo o a scegliere un JPEG.';throw x}parts.push({inline_data:{mime_type:'image/jpeg',data:await b64(bl)}})}
+    prog(15,'Gemini sta leggendo testo e accordi');const t0=Date.now();
+    tick=setInterval(()=>{const sec=(Date.now()-t0)/1000;prog(15+72*(1-Math.exp(-sec/18)))},250);
+    const t=await gemini(key,parts,ac.signal);clearInterval(tick);prog(92,'Inserisco gli accordi nel testo');
+    const parsed=buildFromJSON(t);prog(100,'Fatto');
     closeModal();S.tab='lib';S.sel=null;S.edit={isNew:true,fromPhoto:true,title:parsed.title,author:parsed.author,body:parsed.body};S.view='detail';render();
     toast('Controlla il testo prima di salvare: la lettura può sbagliare')
-  }catch(e){if(ac.signal.aborted)return;
+  }catch(e){clearInterval(tick);if(ac.signal.aborted)return;
     const st=e&&e.status;const d=(e&&e.detail)||(e&&e.message)||String(e);
     const why=st===429?'Hai superato il limite gratuito di Google: riprova tra qualche minuto.':(st===400||st===401||st===403)?'La chiave Gemini non è stata accettata: controllala nelle Impostazioni.':'La lettura non è riuscita. Se la foto è nitida e dritta, mandami il dettaglio qui sotto.';
     modal('Lettura non riuscita','<p>'+esc(why)+'</p><p class="hint" style="word-break:break-word"><b>Dettaglio:</b> '+esc(d)+'</p>','<button class="btn pri" data-act="mclose">Chiudi</button>')}}

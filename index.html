@@ -489,31 +489,31 @@ async function shrink(file){const bmp=await createImageBitmap(file);const k=Math
 const b64=blob=>new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result).split(',')[1]);r.onerror=ko;r.readAsDataURL(blob)});
 const GAPI='https://generativelanguage.googleapis.com/v1beta/';
 async function listModels(key,force){
-  let m=!force&&LS.get('gmodels',null);if(m&&m.length)return m;
+  let m=!force&&LS.get('gmodels2',null);if(m&&m.length)return m;
   const r=await fetch(GAPI+'models?pageSize=200&key='+encodeURIComponent(key));
   if(!r.ok){throw await apiErr(r)}
-  const list=((await r.json()).models||[]).filter(x=>(x.supportedGenerationMethods||[]).includes('generateContent')&&/gemini-[\d.]+-flash/.test(x.name)&&!/lite|image|tts|live|audio|thinking|exp|8b|robotics|computer/.test(x.name));
+  const list=((await r.json()).models||[]).filter(x=>(x.supportedGenerationMethods||[]).includes('generateContent')&&/gemini-[\d.]+-flash/.test(x.name)&&!/image|tts|live|audio|thinking|exp|8b|robotics|computer/.test(x.name));
   if(!list.length){const e=new Error('Nessun modello Gemini Flash disponibile con questa chiave');e.detail=e.message;throw e}
   const ver=x=>parseFloat((/gemini-([\d.]+)-flash/.exec(x.name)||[0,0])[1]);
-  list.sort((a,b)=>ver(b)-ver(a)||(/preview/.test(a.name)-/preview/.test(b.name)));
-  m=list.map(x=>x.name.replace(/^models\//,'')).slice(0,4);LS.set('gmodels',m);return m}
+  const lite=x=>/lite/.test(x.name)?1:0;list.sort((a,b)=>lite(a)-lite(b)||ver(b)-ver(a)||(/preview/.test(a.name)-/preview/.test(b.name)));
+  m=list.map(x=>x.name.replace(/^models\//,'')).slice(0,5);LS.set('gmodels2',m);return m}
 async function apiErr(r){let msg='';try{const j=await r.json();msg=(j.error&&j.error.message)||''}catch(e){}
   const e=new Error('http '+r.status);e.status=r.status;e.detail='Errore '+r.status+(msg?': '+msg.slice(0,160):'');return e}
 async function gemini(key,parts,signal){
   let last=null;
   for(let round=0;round<2;round++){
     const models=await listModels(key,round>0);
-    for(const model of models.slice(0,3)){
+    for(const model of models.slice(0,4)){
       try{
         const r=await fetch(GAPI+'models/'+model+':generateContent?key='+encodeURIComponent(key),{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts}],generationConfig:{temperature:0,responseMimeType:'application/json'}})});
-        if(!r.ok){const e=await apiErr(r);if([400,401,403,429].includes(e.status))throw e;last=e;continue}
+        if(!r.ok){const e=await apiErr(r);if([400,401,403].includes(e.status))throw e;last=e;continue}
         const j=await r.json();const c=(j.candidates||[])[0];const t=c&&c.content&&c.content.parts;
         const txt=t?t.map(p=>p.text||'').join('').trim():'';
         if(!txt){last=new Error('vuota');last.detail='Risposta vuota ('+((c&&c.finishReason)||(j.promptFeedback&&j.promptFeedback.blockReason)||'nessun motivo')+') dal modello '+model;continue}
         return txt
       }catch(e){if(e.name==='AbortError'||e.status)throw e;last=e;last.detail=last.detail||'Connessione non riuscita: '+(e.message||e)}
     }
-    LS.set('gmodels',null)}
+    LS.set('gmodels2',null)}
   throw last||new Error('sconosciuto')}
 function placeChords(text,list){
   const base=text.toLowerCase();const ins=[];
@@ -568,7 +568,7 @@ function settings(){
    +('<div class="editonly"><p style="margin:16px 0 6px;font-weight:600">Lettura da foto (Gemini)</p><p class="hint">Incolla qui la tua chiave gratuita, creata su aistudio.google.com \u2192 \u201CGet API key\u201D. Resta salvata solo su questo dispositivo.</p><div class="form" style="padding:0"><label>Chiave<input type="password" id="gk" value="'+esc(LS.get('gkey',''))+'" autocomplete="off" placeholder="AIza\u2026"></label></div></div>')
    +'<p class="hint editonly" style="margin-top:14px">Copia di sicurezza: scarica tutti i canti e le scalette in un file, o ricaricali da un file salvato prima.</p>'
    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="export">Scarica copia</button><label class="btn editonly" style="cursor:pointer">Ripristina da file<input type="file" id="imp" accept=".json,application/json" hidden></label></div>','<button class="btn pri" data-act="mclose">Fatto</button>');
-  if($('#gk'))$('#gk').addEventListener('change',e=>{LS.set('gkey',e.target.value.trim());LS.set('gmodel',null);toast('Chiave salvata')});
+  if($('#gk'))$('#gk').addEventListener('change',e=>{LS.set('gkey',e.target.value.trim());LS.set('gmodels2',null);toast('Chiave salvata')});
   if($('#imp'))$('#imp').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
     try{const d=JSON.parse(await f.text());let n=0;for(const s of d.songs||[]){if(s.id&&s.title){await saveSong(s);n++}}for(const s of d.sets||[]){if(s.id&&s.name){await saveSet(s)}}closeModal();render();toast('Ripristinati '+n+' canti')}catch(err){toast('File non valido')}})}
 

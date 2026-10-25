@@ -145,6 +145,10 @@ textarea{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:3
 .items .n{font:600 14px var(--ui);color:var(--muted);width:22px;text-align:right}
 .items .grow{flex:1;min-width:0}
 .items .t{font:600 16px/1.25 var(--ui)}
+.items li.mom{background:var(--surface2);border-bottom:0;padding:8px 14px;min-height:44px;margin-top:6px}
+.items li.mom b{font:700 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.items li.mom .btn{min-height:34px}
+@media(max-width:600px){.items li:not(.mom) .grow{flex-basis:calc(100% - 40px)}.items li:not(.mom) .mini:first-of-type{margin-left:30px}}
 .items input[type=text]{min-height:34px;padding:2px 10px;font-size:13px;margin-top:4px;max-width:240px}
 .mini{display:flex;gap:4px;align-items:center}
 .mini .btn{min-height:38px;min-width:38px;padding:0 8px;justify-content:center}
@@ -187,7 +191,7 @@ textarea{font:14px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;min-height:3
   .edit-grid{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
-.ro [data-act="new"],.ro [data-act="edit"],.ro [data-act="addset"],.ro [data-act="newset"],.ro [data-act="pickadd"],.ro [data-act="dupset"],.ro [data-act="delset"],.ro [data-act="rm"],.ro [data-act="up"],.ro [data-act="dn"],.ro [data-act="delsong"],.ro .editonly{display:none!important}
+.ro [data-act="new"],.ro [data-act="edit"],.ro [data-act="addset"],.ro [data-act="newset"],.ro [data-act="pickadd"],.ro [data-act="dupset"],.ro [data-act="delset"],.ro [data-act="pickmom"],.ro [data-act="rm"],.ro [data-act="up"],.ro [data-act="dn"],.ro [data-act="delsong"],.ro .editonly{display:none!important}
 
 .ring{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0 4px}
 .ring svg{width:130px;height:130px;transform:rotate(-90deg)}
@@ -353,7 +357,7 @@ function rowHTML(s){const tg=s.tags||[],tc=(tg.find(t=>TCLS[t])||'');const kl=fi
 function heroHTML(){const today=new Date().toISOString().slice(0,10);
   const up=S.sets.filter(x=>(x.date||'')>=today&&x.items.length).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
   const set=up[0];if(!set)return'';
-  const lines=set.items.slice(0,4).map(it=>{const sg=S.songs.find(x=>x.id===it.sid);return sg?'<div class="l"><span>'+esc(it.label||'')+'</span><span>'+esc(sg.title)+'</span></div>':''}).join('');
+  const lines=ordered(set).slice(0,4).map(it=>{const sg=S.songs.find(x=>x.id===it.sid);return sg?'<div class="l"><span>'+esc(it.label||'')+'</span><span>'+esc(sg.title)+'</span></div>':''}).join('');
   return'<div class="hero"><small>Prossima scaletta · '+esc(fmtDate(set.date))+'</small><h3>'+esc(set.name)+'</h3>'+lines
    +(set.items.length>4?'<div class="l"><span></span><span>e altri '+(set.items.length-4)+'</span></div>':'')
    +'<div class="go"><button data-act="heropres" data-id="'+set.id+'">Presenta</button><button class="o" data-act="heroopen" data-id="'+set.id+'">Apri</button></div></div>'}
@@ -420,23 +424,38 @@ function viewSet(){
    +(l?'<ul class="list">'+l+'</ul>':'<div class="empty"><b>Nessuna scaletta</b>Crea una scaletta per la messa della domenica o per un altro evento, poi scegli i canti.</div>')+'</div></section>';
   h+='<section class="pane detailp">'+(set?setHTML(set):'<div class="empty" style="margin:auto"><b>Scegli una scaletta</b>Oppure creane una nuova.</div>')+'</section>';
   $('#main').innerHTML=h}
+/* messa: i canti sono raggruppati e ordinati per momento */
+const momIdx=l=>{const k=MOMENTI.findIndex(m=>m.toLowerCase()===String(l||'').trim().toLowerCase());return k<0?MOMENTI.length:k};
+function sortMessa(set){if(set.type!=='messa')return;
+  set.items=set.items.map((x,k)=>[x,k]).sort((a,b)=>momIdx(a[0].label)-momIdx(b[0].label)||a[1]-b[1]).map(x=>x[0])}
+const ordered=set=>{const c={type:set.type,items:set.items.slice()};sortMessa(c);return c.items};
+const songMoment=sg=>MOMENTI.find(m=>(sg&&sg.tags||[]).includes(m))||'';
 function setHTML(set){
-  const rows=set.items.map((it,i)=>{const s=S.songs.find(x=>x.id===it.sid);
+  const messa=set.type==='messa';sortMessa(set);
+  const row=(it,i)=>{const s=S.songs.find(x=>x.id===it.sid);
+    const up=messa?i>0&&momIdx(set.items[i-1].label)===momIdx(it.label):i>0,dn=messa?i<set.items.length-1&&momIdx(set.items[i+1].label)===momIdx(it.label):i<set.items.length-1;
     if(!s)return'<li><span class="n">'+(i+1)+'</span><span class="grow"><span class="t" style="color:var(--danger)">Canto eliminato</span></span><button class="btn sm danger" data-act="rm" data-i="'+i+'">Togli</button></li>';
     const kl=keyLabel(s,it.tr||0,S.pref);
-    return'<li><span class="n">'+(i+1)+'</span><span class="grow"><span class="t">'+esc(s.title)+'</span><br><input type="text" list="momenti" data-act="lbl" data-i="'+i+'" value="'+esc(it.label||'')+'" placeholder="Momento (es. Ingresso)" aria-label="Momento della celebrazione"></span>'
+    return'<li><span class="n">'+(i+1)+'</span><span class="grow"><span class="t">'+esc(s.title)+'</span>'+(messa?'':'<br><input type="text" data-act="lbl" data-i="'+i+'" value="'+esc(it.label||'')+'" placeholder="Momento (es. Ingresso)" aria-label="Momento della celebrazione">')+'</span>'
     +'<div class="mini" title="Capotasto"><span class="sync">Capo</span><button class="btn" data-act="icapo" data-i="'+i+'" data-d="-1" aria-label="Capotasto pi\u00F9 basso">\u2212</button><b class="key" style="min-width:30px">'+(it.capo||'\u2013')+'</b><button class="btn" data-act="icapo" data-i="'+i+'" data-d="1" aria-label="Capotasto pi\u00F9 alto">+</button></div>'
     +'<div class="mini"><button class="btn" data-act="itr" data-i="'+i+'" data-d="-1" aria-label="Semitono sotto">−</button><b class="key" style="min-width:52px">'+esc(kl||'–')+'</b><button class="btn" data-act="itr" data-i="'+i+'" data-d="1" aria-label="Semitono sopra">+</button></div>'
-    +'<div class="mini"><button class="btn" data-act="up" data-i="'+i+'" aria-label="Sposta su" '+(i?'':'disabled')+'>↑</button><button class="btn" data-act="dn" data-i="'+i+'" aria-label="Sposta giù" '+(i<set.items.length-1?'':'disabled')+'>↓</button><button class="btn danger" data-act="rm" data-i="'+i+'" aria-label="Togli dalla scaletta">×</button></div></li>'}).join('');
+    +'<div class="mini"><button class="btn" data-act="up" data-i="'+i+'" aria-label="Sposta su" '+(up?'':'disabled')+'>↑</button><button class="btn" data-act="dn" data-i="'+i+'" aria-label="Sposta giù" '+(dn?'':'disabled')+'>↓</button><button class="btn danger" data-act="rm" data-i="'+i+'" aria-label="Togli dalla scaletta">×</button></div></li>'};
+  let rows;
+  if(messa){const idx=set.items.map((it,i)=>[it,i]);
+    rows=MOMENTI.concat(['']).map((m,k)=>{const g=idx.filter(x=>momIdx(x[0].label)===k);
+      if(!m&&!g.length||!S.canEdit&&!g.length)return'';
+      return'<li class="mom"><span class="grow"><b>'+esc(m||'Altro')+'</b></span>'+(m?'<button class="btn sm" data-act="pickmom" data-m="'+esc(m)+'">+ Canto</button>':'')+'</li>'
+        +g.map(x=>row(x[0],x[1])).join('')}).join('')}
+  else rows=set.items.map(row).join('');
   return'<div class="detail-h"><button class="btn sm ghost back" data-act="back">← Elenco</button><h2>'+esc(set.name)+'</h2><button class="btn" data-act="shareset">Condividi</button><button class="btn pri" data-act="presset" '+(set.items.length?'':'disabled')+'>Presenta</button></div>'
-  +'<div class="pane-b"><div class="form"><div class="two"><label>Nome<input type="text" id="s-name" value="'+esc(set.name)+'"></label><label>Tipo<select id="s-type">'+Object.keys(TIPI).map(k=>'<option value="'+k+'" '+((set.type||'standard')===k?'selected':'')+'>'+TIPI[k]+'</option>').join('')+'</select></label></div><label style="max-width:260px">Data<input type="date" id="s-date" value="'+esc(set.date||'')+'"></label><datalist id="momenti">'+((set.type||'standard')==='messa'?MOMENTI.map(m=>'<option value="'+m+'">').join(''):'')+'</datalist></div>'
+  +'<div class="pane-b"><div class="form"><div class="two"><label>Nome<input type="text" id="s-name" value="'+esc(set.name)+'"></label><label>Tipo<select id="s-type">'+Object.keys(TIPI).map(k=>'<option value="'+k+'" '+((set.type||'standard')===k?'selected':'')+'>'+TIPI[k]+'</option>').join('')+'</select></label></div><label style="max-width:260px">Data<input type="date" id="s-date" value="'+esc(set.date||'')+'"></label></div>'
   +(rows?'<ul class="list items">'+rows+'</ul>':'<div class="empty"><b>Scaletta vuota</b>Aggiungi i canti nell’ordine in cui li suonerai.</div>')
-  +'<div class="form" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-act="pickadd">+ Aggiungi canti</button><button class="btn" data-act="dupset">Duplica</button><button class="btn danger" data-act="delset" style="margin-left:auto">Elimina scaletta</button></div></div>'}
+  +'<div class="form" style="display:flex;gap:8px;flex-wrap:wrap">'+(messa?'':'<button class="btn pri" data-act="pickadd">+ Aggiungi canti</button>')+'<button class="btn" data-act="dupset">Duplica</button><button class="btn danger" data-act="delset" style="margin-left:auto">Elimina scaletta</button></div></div>'}
 
 const IC={play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>',plus:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',add:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h11M4 11h7M4 16h7M17 12v8M13 16h8"/></svg>'};
 function updateFab(){const f=$('#fab');if(!f)return;let act='new',lab='Nuovo canto',ic=IC.plus;
   if(S.tab==='lib'){if(S.sel&&S.view==='detail'&&!S.edit){act='addset';lab='Aggiungi a una scaletta';ic=IC.add}}
-  else{if(S.selSet&&S.view==='detail'){act='pickadd';lab='Aggiungi canti';ic=IC.add}else{act='newset';lab='Nuova scaletta'}}
+  else{const st=S.sets.find(x=>x.id===S.selSet);if(st&&S.view==='detail'&&st.type!=='messa'){act='pickadd';lab='Aggiungi canti';ic=IC.add}else{act='newset';lab='Nuova scaletta'}}
   f.hidden=!!S.edit;f.dataset.act=act;f.setAttribute('aria-label',lab);f.innerHTML=ic}
 function setEyebrow(){const e=$('#eyebrow');if(!e)return;const t=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'});e.textContent=t.charAt(0).toUpperCase()+t.slice(1)}
 function render(){
@@ -445,7 +464,7 @@ function render(){
   updateFab();
   if(S.db&&!S.canEdit)document.querySelectorAll('#s-name,#s-type,#s-date,[data-act=lbl]').forEach(e=>e.disabled=true);
   const sn=$('#s-name');if(sn){sn.addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.name=e.target.value.trim()||'Scaletta';await saveSet(s);render()});
-    $('#s-type').addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.type=e.target.value;await saveSet(s);render()});
+    $('#s-type').addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.type=e.target.value;sortMessa(s);await saveSet(s);render()});
     $('#s-date').addEventListener('change',async e=>{const s=S.sets.find(x=>x.id===S.selSet);s.date=e.target.value;await saveSet(s);render()})}
   setSync()}
 
@@ -453,12 +472,13 @@ function render(){
 function modal(title,body,foot){const m=$('#modal');m.innerHTML='<div class="card"><h3>'+title+'</h3><div class="cb">'+body+'</div><div class="cf">'+foot+'</div></div>';m.classList.add('on')}
 function closeModal(){$('#modal').classList.remove('on');$('#modal').innerHTML=''}
 function ask(title,text,okLabel,fn,danger){modal(esc(title),'<p>'+esc(text)+'</p>','<button class="btn" data-act="mclose">Annulla</button><button class="btn '+(danger?'danger':'pri')+'" id="mok">'+esc(okLabel)+'</button>');$('#mok').onclick=()=>{closeModal();fn()}}
-function pickSongs(cb){
+function pickSongs(cb,tag){
   const chosen=new Set();
   const draw=()=>{const q=($('#pq')||{value:''}).value.toLowerCase(),tg=($('#pt')||{value:''}).value;
-    $('#plist').innerHTML=S.songs.slice().sort((a,b)=>a.title.localeCompare(b.title,'it')).filter(s=>(!q||(s.title+(s.author||'')).toLowerCase().includes(q))&&(!tg||(s.tags||[]).includes(tg))).map(s=>'<li><label><input type="checkbox" value="'+s.id+'" '+(chosen.has(s.id)?'checked':'')+'><span><b style="font-family:var(--text)">'+esc(s.title)+'</b><br><span class="sync">'+esc(s.author||'')+'</span></span></label></li>').join('')||'<li class="empty">Nessun canto</li>';
+    $('#plist').innerHTML=S.songs.slice().sort((a,b)=>a.title.localeCompare(b.title,'it')).filter(s=>(!q||(s.title+(s.author||'')).toLowerCase().includes(q))&&(!tg||(s.tags||[]).includes(tg))).map(s=>'<li><label><input type="checkbox" value="'+s.id+'" '+(chosen.has(s.id)?'checked':'')+'><span><b style="font-family:var(--text)">'+esc(s.title)+'</b><br><span class="sync">'+esc(s.author||'')+'</span></span></label></li>').join('')||'<li class="empty">Nessun canto'+(tg?' con momento \u201C'+esc(tg)+'\u201D':'')+'</li>';
     $('#pn').textContent=chosen.size?'Aggiungi ('+chosen.size+')':'Aggiungi'};
-  modal('Scegli i canti','<div class="two" style="margin-bottom:8px"><input type="search" id="pq" placeholder="Cerca" aria-label="Cerca canto"><select id="pt" aria-label="Filtra per momento o tempo"><option value="">Tutti i canti</option>'+MOMENTI.concat(TEMPI).map(t=>'<option>'+t+'</option>').join('')+'</select></div><ul class="list pick" id="plist" style="max-height:50vh;overflow:auto"></ul><p class="hint">I canti vengono aggiunti nell’ordine in cui li selezioni.</p>','<button class="btn" data-act="mclose">Annulla</button><button class="btn pri" id="pok"><span id="pn">Aggiungi</span></button>');
+  modal('Scegli i canti','<div class="two" style="margin-bottom:8px"><input type="search" id="pq" placeholder="Cerca" aria-label="Cerca canto"><select id="pt" aria-label="Filtra per momento o tempo"><option value="">Tutti i canti</option>'+MOMENTI.concat(TEMPI).map(t=>'<option>'+t+'</option>').join('')+'</select></div><ul class="list pick" id="plist" style="max-height:50vh;overflow:auto"></ul><p class="hint">'+(tag?'Vedi i canti con momento \u201C'+esc(tag)+'\u201D. Per gli altri scegli \u201CTutti i canti\u201D. ':'')+'I canti vengono aggiunti nell’ordine in cui li selezioni.</p>','<button class="btn" data-act="mclose">Annulla</button><button class="btn pri" id="pok"><span id="pn">Aggiungi</span></button>');
+  if(tag)$('#pt').value=tag;
   draw();$('#pq').addEventListener('input',draw);$('#pt').addEventListener('change',draw);
   $('#plist').addEventListener('change',e=>{if(e.target.type!=='checkbox')return;e.target.checked?chosen.add(e.target.value):chosen.delete(e.target.value);draw()});
   $('#pok').onclick=()=>{closeModal();if(chosen.size)cb([...chosen])}}
@@ -644,7 +664,7 @@ function importDialog(){
     modal('Importazione finita','<p>Importati '+n+(n===1?' canto':' canti')+(dup.length?', saltati '+dup.length+' perch\u00E9 con lo stesso titolo c\u2019erano gi\u00E0':'')+'.</p>'+(q?'<p>'+q+(q===1?' contiene':' contengono')+' <b>[?]</b>: punti che l\u2019assistente non riusciva a leggere. Cercali nel testo e correggili.</p>':'')+'<p class="hint">I canti importati hanno l\u2019etichetta \u201CDa rivedere\u201D: tocca \u201CTempo\u201D in alto per trovarli tutti insieme e toglila quando li hai controllati.</p>'+(dup.length?'<p class="hint">Saltati: '+esc(dup.slice(0,8).join(', '))+(dup.length>8?'\u2026':'')+'</p>':''),'<button class="btn pri" data-act="mclose">Chiudi</button>')}}
 /* ---------- link alle scalette ---------- */
 const setURL=s=>location.origin+location.pathname+'#scaletta='+encodeURIComponent(s.id);
-function setText(s){return s.name+(s.date?' \u00B7 '+fmtDate(s.date):'')+'\n'+s.items.map(it=>{const sg=S.songs.find(x=>x.id===it.sid);return sg?(it.label?it.label+': ':'')+sg.title:''}).filter(Boolean).map((x,k)=>(k+1)+'. '+x).join('\n')}
+function setText(s){return s.name+(s.date?' \u00B7 '+fmtDate(s.date):'')+'\n'+ordered(s).map(it=>{const sg=S.songs.find(x=>x.id===it.sid);return sg?(it.label?it.label+': ':'')+sg.title:''}).filter(Boolean).map((x,k)=>(k+1)+'. '+x).join('\n')}
 async function shareSet(s){const url=setURL(s),text=setText(s)+'\n\n'+url;
   if(navigator.share){try{await navigator.share({title:s.name,text});return}catch(e){if(e.name==='AbortError')return}}
   try{await navigator.clipboard.writeText(text);toast('Link copiato: incollalo nella chat del coro')}
@@ -681,7 +701,7 @@ document.addEventListener('click',async e=>{
   case'photo':{let inp=$('#photoIn');if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.id='photoIn';inp.hidden=true;document.body.appendChild(inp)}inp.click();break}
   case'fm':S.fm=b.dataset.v;render();break;
   case'heroopen':S.tab='set';S.selSet=b.dataset.id;S.view='detail';S.edit=null;render();break;
-  case'heropres':{const hs=S.sets.find(x=>x.id===b.dataset.id);if(hs)openPres(hs.items,0,hs.name);break}
+  case'heropres':{const hs=S.sets.find(x=>x.id===b.dataset.id);if(hs)openPres(ordered(hs),0,hs.name);break}
   case'theme':S.theme=b.dataset.v;LS.set('theme',S.theme);applyLook();document.querySelectorAll('#spt button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.theme));document.querySelectorAll('#spa button').forEach(x=>{const a=ACC[x.dataset.v];x.style.background=isDark()?a.d:a.l;x.style.color=dk2ink(a)});break;
   case'accent':S.accent=b.dataset.v;LS.set('accent',S.accent);applyLook();document.querySelectorAll('#spa button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.accent));break;
   case'idx':S.idx=b.dataset.v;LS.set('idx',S.idx);render();break;
@@ -694,7 +714,7 @@ document.addEventListener('click',async e=>{
   case'addset':{
     const opts=sortedSets();
     modal('Aggiungi a una scaletta',(opts.length?'<ul class="list">'+opts.map(s=>'<li><button class="row" data-act="addto" data-id="'+s.id+'"><span class="grow"><span class="t">'+esc(s.name)+'</span><span class="s">'+esc(fmtDate(s.date))+'</span></span></button></li>').join('')+'</ul>':'<p>Non hai ancora scalette.</p>'),'<button class="btn" data-act="mclose">Chiudi</button><button class="btn pri" data-act="addtonew">Nuova scaletta</button>');break}
-  case'addto':{const s=S.sets.find(x=>x.id===b.dataset.id);s.items.push({sid:song.id,tr:S.tr,capo:song.capo||0,label:''});await saveSet(s);closeModal();toast('Aggiunto a “'+s.name+'”');break}
+  case'addto':{const s=S.sets.find(x=>x.id===b.dataset.id);s.items.push({sid:song.id,tr:S.tr,capo:song.capo||0,label:s.type==='messa'?songMoment(song):''});sortMessa(s);await saveSet(s);closeModal();toast('Aggiunto a “'+s.name+'”');break}
   case'addtonew':{const s={id:uid(),type:'standard',name:'Nuova scaletta',date:new Date().toISOString().slice(0,10),items:[{sid:song.id,tr:S.tr,capo:song.capo||0,label:''}]};await saveSet(s);closeModal();S.tab='set';S.selSet=s.id;S.view='detail';render();break}
   case'mclose':closeModal();break;
   case'settings':settings();break;
@@ -711,12 +731,13 @@ document.addEventListener('click',async e=>{
   case'ntype':{S.nt=b.dataset.v;document.querySelectorAll('#nt button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===S.nt));const nm=$('#n-name');if(nm&&(nm.value==='Messa'||nm.value==='Scaletta standard'||!nm.value))nm.value=TIPI[S.nt];break}
   case'dupset':{const c={...set,id:uid(),name:set.name+' (copia)',example:false,items:set.items.map(x=>({...x}))};await saveSet(c);S.selSet=c.id;render();break}
   case'delset':ask('Eliminare la scaletta?','“'+set.name+'” verrà eliminata. I canti restano nella libreria.','Elimina',async()=>{S.sets=S.sets.filter(x=>x.id!==set.id);await unpersist('setlists',set.id);S.selSet=null;S.view='list';render()},true);break;
-  case'pickadd':pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:''})});await saveSet(set);render()});break;
+  case'pickmom':{const m=b.dataset.m;pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:m})});sortMessa(set);await saveSet(set);render()},m);break}
+  case'pickadd':if(set.type==='messa')break;pickSongs(async ids=>{ids.forEach(id=>{const sg=S.songs.find(x=>x.id===id);set.items.push({sid:id,tr:0,capo:(sg&&sg.capo)||0,label:''})});await saveSet(set);render()});break;
   case'rm':set.items.splice(i,1);await saveSet(set);render();break;
   case'up':case'dn':{const j=a==='up'?i-1:i+1;if(j<0||j>=set.items.length)break;[set.items[i],set.items[j]]=[set.items[j],set.items[i]];await saveSet(set);render();break}
   case'icapo':set.items[i].capo=Math.max(0,Math.min(11,(set.items[i].capo||0)+d));await saveSet(set);render();break;
   case'itr':set.items[i].tr=(set.items[i].tr||0)+d;await saveSet(set);render();break;
-  case'presset':openPres(set.items,0,set.name);break;
+  case'presset':openPres(ordered(set),0,set.name);break;
   /* presentazione */
   case'pclose':closePres();break;
   case'pnext':pgo(1);break;case'pprev':pgo(-1);break;

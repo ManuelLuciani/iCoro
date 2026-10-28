@@ -289,7 +289,7 @@ function normalizeBody(txt){const L=String(txt).replace(/\r/g,'').split('\n'),ou
 function keyLabel(song,n,pref){const c=firstChord(song.body);if(!c)return song.key||'';
   const sys=pref==='auto'?songSys(song.body):pref;const ki=keyIndex(c);
   const flats=FLATKEYS.includes((ki+n+120)%12);return shiftChord(c,n,sys,flats)}
-function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 /* solo testo: niente accordi, niente righe di soli accordi */
 function lyricsHTML(song){const out=[],GAP='<div class="gap"></div>';
   for(const line of String(song.body||'').replace(/\r/g,'').split('\n')){
@@ -758,7 +758,7 @@ document.addEventListener('click',async e=>{
     await saveSong(o);S.sel=o.id;S.edit=null;S.view='detail';S.tr=0;render();toast('Canto salvato');break}
   case'swdel':{const sg=S.songs.find(x=>x.id===b.dataset.id);if(!sg)break;
     ask('Eliminare questo canto?','\u201C'+sg.title+'\u201D verr\u00E0 eliminato per tutto il coro, anche dalle scalette. L\u2019operazione non si pu\u00F2 annullare.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==sg.id);await unpersist('songs',sg.id);if(S.sel===sg.id){S.sel=null;S.view='list'}S.edit=null;render();toast('Canto eliminato')},true);break}
-  case'delsong':ask('Eliminare questo canto?','“'+song.title+'” sparirà dalla libreria e dalle scalette.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==song.id);await unpersist('songs',song.id);S.sel=null;S.edit=null;S.view='list';render()},true);break;
+  case'delsong':ask('Eliminare questo canto?','“'+esc(song.title)+'” sparirà dalla libreria e dalle scalette.','Elimina',async()=>{S.songs=S.songs.filter(x=>x.id!==song.id);await unpersist('songs',song.id);S.sel=null;S.edit=null;S.view='list';render()},true);break;
   case'photo':{let inp=$('#photoIn');if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.id='photoIn';inp.hidden=true;document.body.appendChild(inp)}inp.click();break}
   case'fm':S.fm=b.dataset.v;render();break;
   case'heroopen':S.tab='set';S.selSet=b.dataset.id;S.view='detail';S.edit=null;render();break;
